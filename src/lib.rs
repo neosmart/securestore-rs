@@ -73,19 +73,30 @@ impl SecretsManager {
 
 impl<'a> KeySource<'a> {
     fn extract_keys(&self, iv: &Option<[u8; shared::IV_SIZE]>) -> Result<Keys, Error> {
-        let mut encryption_key = [0u8; shared::KEY_LENGTH];
-        let mut hmac_key = [0u8; shared::KEY_LENGTH];
+        let mut keys = Keys {
+            encryption: [0u8; shared::KEY_LENGTH],
+            hmac: [0u8; shared::KEY_LENGTH],
+        };
 
         match &self {
             KeySource::Generate => {
-                rand::rand_bytes(&mut encryption_key).expect("Key generation failure!");
-                rand::rand_bytes(&mut hmac_key).expect("Key generation failure!");
+                rand::rand_bytes(&mut keys.encryption).expect("Key generation failure!");
+                rand::rand_bytes(&mut keys.hmac).expect("Key generation failure!");
             }
             KeySource::File(path) => {
+                match std::fs::metadata(path) {
+                    Err(e) => return Err(Error::Io(e)),
+                    Ok(attr) => {
+                        if attr.len() as usize != shared::KEY_COUNT * shared::KEY_LENGTH {
+                            return Err(Error::InvalidKeyfile);
+                        }
+                    }
+                };
+
                 let mut file = File::open(path).map_err(Error::Io)?;
 
-                file.read_exact(&mut encryption_key).map_err(Error::Io)?;
-                file.read_exact(&mut hmac_key).map_err(Error::Io)?;
+                file.read_exact(&mut keys.encryption).map_err(Error::Io)?;
+                file.read_exact(&mut keys.hmac).map_err(Error::Io)?;
             }
             KeySource::Password(password) => {
                 use openssl::hash::MessageDigest;
@@ -106,15 +117,16 @@ impl<'a> KeySource<'a> {
                 )
                 .expect("PBKDF2 key generation failed!");
 
-                encryption_key
-                    .copy_from_slice(&key_data[0 * shared::KEY_LENGTH..1 * shared::KEY_LENGTH]);
-                hmac_key.copy_from_slice(&key_data[1 * shared::KEY_LENGTH..2 * shared::KEY_LENGTH]);
+                {
+                    let mut slice = &key_data[..];
+                    slice.read_exact(&mut keys.encryption)
+                        .map_err(|_| Error::InvalidKeyfile)?;
+                    slice.read_exact(&mut keys.hmac)
+                        .map_err(|_| Error::InvalidKeyfile)?;
+                }
             }
         };
 
-        Ok(Keys {
-            encryption: encryption_key,
-            hmac: hmac_key,
-        })
+        Ok(keys)
     }
 }
