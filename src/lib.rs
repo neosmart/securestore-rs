@@ -119,9 +119,11 @@ impl<'a> KeySource<'a> {
 
                 {
                     let mut slice = &key_data[..];
-                    slice.read_exact(&mut keys.encryption)
+                    slice
+                        .read_exact(&mut keys.encryption)
                         .map_err(|_| Error::InvalidKeyfile)?;
-                    slice.read_exact(&mut keys.hmac)
+                    slice
+                        .read_exact(&mut keys.hmac)
                         .map_err(|_| Error::InvalidKeyfile)?;
                 }
             }

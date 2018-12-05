@@ -4,6 +4,7 @@
 use crate::errors::Error;
 use openssl::rand;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -18,6 +19,8 @@ pub const PBKDF2_ROUNDS: usize = 10000usize;
 pub const IV_SIZE: usize = KEY_LENGTH;
 /// The latest version of the vault schema
 pub const SCHEMA_VERSION: u32 = 1;
+/// The length of a single HMAC result in bytes
+pub const HMAC_SIZE: usize = 160 / 8; // HMAC-SHA1
 
 /// A representation of the on-disk encrypted secrets store. Read and written via
 /// `[SecretsManager]`.
@@ -27,6 +30,16 @@ pub struct Vault {
     pub version: u32,
     /// The initialization vector for key derivation
     pub iv: Option<[u8; IV_SIZE]>,
+    /// The secrets we are tasked with protecting, sorted for version control friendliness.
+    pub data: BTreeMap<String, EncryptedBlob>,
+}
+
+/// A single secret, independently encrypted and individually decrypted on-demand.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EncryptedBlob {
+    pub iv: [u8; IV_SIZE],
+    pub hmac: [u8; HMAC_SIZE],
+    pub payload: Vec<u8>,
 }
 
 impl Vault {
@@ -37,6 +50,7 @@ impl Vault {
         Vault {
             version: SCHEMA_VERSION,
             iv: Some(iv),
+            data: Default::default(),
         }
     }
 
@@ -70,10 +84,16 @@ impl Vault {
 }
 
 /// The keys contained in a binary key file, in the same order they are stored.
+///
+/// While the consensus is that SHA1-HMAC and AES are sufficiently different that
+/// there should not be a problem reusing the same key for both operations when
+/// implementing authenticated encryption (as AES-CBC and HMAC-SHA1), but out of
+/// an abundance of precaution we create/derive two separate keys entirely for
+/// these two operations.
 pub struct Keys {
-    /// The key used to encrypt the secrets
+    /// The key used to encrypt the secrets.
     pub encryption: [u8; KEY_LENGTH],
-    /// The key used to generate the HMAC used for authenticated encryption
+    /// The key used to generate the HMAC used for authenticated encryption.
     pub hmac: [u8; KEY_LENGTH],
 }
 
@@ -85,5 +105,69 @@ impl Keys {
 
         file.write_all(&self.encryption).map_err(Error::Io)?;
         file.write_all(&self.hmac).map_err(Error::Io)
+    }
+}
+
+use openssl::hash::MessageDigest;
+use openssl::pkey::PKey;
+use openssl::sign::Signer;
+use openssl::symm::{self, Cipher};
+
+impl EncryptedBlob {
+    /// Creates an `EncryptedBlob` from a plaintext secret.
+    pub fn encrypt(keys: &Keys, secret: &[u8]) -> EncryptedBlob {
+        let cipher = Cipher::aes_128_cbc();
+        let mut iv = [0u8; KEY_LENGTH];
+
+        rand::rand_bytes(&mut iv).expect("Error reading IV bytes from RNG!");
+
+        // Unlike with decryption, we don't expect this to ever fail
+        let payload = symm::encrypt(cipher, &keys.encryption, Some(&iv), secret)
+            .expect("Error encrypting payload!");
+
+        EncryptedBlob {
+            hmac: Self::calculate_hmac(&keys.hmac, &iv, &payload),
+            iv,
+            payload,
+        }
+    }
+
+    /// Decrypts an `EncryptedBlob` object and retrieves the plaintext equivalent
+    /// of `[EncryptedBlob::Data]`.
+    pub fn decrypt(&self, keys: &Keys) -> Result<Vec<u8>, Error> {
+        if !self.authenticate(&keys.hmac) {
+            return Err(Error::DecryptionFailure);
+        }
+
+        let cipher = Cipher::aes_128_cbc();
+        symm::decrypt(cipher, &keys.encryption, Some(&self.iv), &self.payload)
+            .map_err(|_| Error::DecryptionFailure)
+    }
+
+    fn calculate_hmac(
+        &hmac_key: &[u8; KEY_LENGTH],
+        &iv: &[u8; IV_SIZE],
+        encrypted: &[u8],
+    ) -> [u8; HMAC_SIZE] {
+        let key = PKey::hmac(&hmac_key).expect("Failed to load HMAC encryption key!");
+        let mut signer =
+            Signer::new(MessageDigest::sha1(), &key).expect("Failed to create HMAC signer!");
+
+        signer.update(&iv).unwrap();
+        signer.update(&encrypted).unwrap();
+
+        let mut hmac = [0u8; HMAC_SIZE];
+        signer
+            .sign(&mut hmac)
+            // this is not the same as the HMAC not matching
+            .expect("Failed to create HMAC signature!");
+
+        hmac
+    }
+
+    /// Authenticates the encrypted payload against the provided HMAC key
+    pub fn authenticate(&self, &hmac_key: &[u8; KEY_LENGTH]) -> bool {
+        let hmac = Self::calculate_hmac(&hmac_key, &self.iv, &self.payload);
+        openssl::memcmp::eq(&hmac, &self.hmac)
     }
 }
