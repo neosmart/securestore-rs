@@ -106,6 +106,23 @@ impl Keys {
         file.write_all(&self.encryption).map_err(Error::Io)?;
         file.write_all(&self.hmac).map_err(Error::Io)
     }
+
+    /// Imports keys from a bytestream
+    pub fn import<R: Read>(mut source: R) -> Result<Self, Error> {
+        let mut keys: Keys = Keys {
+            encryption: [0u8; KEY_LENGTH],
+            hmac: [0u8; KEY_LENGTH],
+        };
+
+        source
+            .read_exact(&mut keys.encryption)
+            .map_err(|_| Error::InvalidKeyfile)?;
+        source
+            .read_exact(&mut keys.hmac)
+            .map_err(|_| Error::InvalidKeyfile)?;
+
+        Ok(keys)
+    }
 }
 
 use openssl::hash::MessageDigest;

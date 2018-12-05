@@ -8,7 +8,6 @@ use self::shared::{Keys, Vault};
 use crate::errors::Error;
 use openssl::rand;
 use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Used to specify where encryption/decryption keys should be loaded from
@@ -30,9 +29,7 @@ pub struct SecretsManager {
 
 impl SecretsManager {
     /// Creates a new vault on-disk at path `p` and loads it in a new instance
-    /// of `SecretsManager`. A newly created store is initialized with randomly-
-    /// generated encryption keys and may be used immediately, or the default keys
-    /// may be overridden with [`SecretsManager::load_keys`].
+    /// of `SecretsManager`.
     pub fn new<P: AsRef<Path>>(path: P, key_source: KeySource) -> Result<Self, Error> {
         let path = path.as_ref();
 
@@ -75,15 +72,12 @@ impl SecretsManager {
 
 impl<'a> KeySource<'a> {
     fn extract_keys(&self, iv: &Option<[u8; shared::IV_SIZE]>) -> Result<Keys, Error> {
-        let mut keys = Keys {
-            encryption: [0u8; shared::KEY_LENGTH],
-            hmac: [0u8; shared::KEY_LENGTH],
-        };
-
         match &self {
             KeySource::Generate => {
-                rand::rand_bytes(&mut keys.encryption).expect("Key generation failure!");
-                rand::rand_bytes(&mut keys.hmac).expect("Key generation failure!");
+                let mut buffer = [0u8; shared::KEY_COUNT * shared::KEY_LENGTH];
+                rand::rand_bytes(&mut buffer).expect("Key generation failure!");
+
+                Keys::import(&buffer[..])
             }
             KeySource::File(path) => {
                 match std::fs::metadata(path) {
@@ -95,10 +89,8 @@ impl<'a> KeySource<'a> {
                     }
                 };
 
-                let mut file = File::open(path).map_err(Error::Io)?;
-
-                file.read_exact(&mut keys.encryption).map_err(Error::Io)?;
-                file.read_exact(&mut keys.hmac).map_err(Error::Io)?;
+                let file = File::open(path).map_err(Error::Io)?;
+                Keys::import(&file)
             }
             KeySource::Password(password) => {
                 use openssl::hash::MessageDigest;
@@ -119,18 +111,8 @@ impl<'a> KeySource<'a> {
                 )
                 .expect("PBKDF2 key generation failed!");
 
-                {
-                    let mut slice = &key_data[..];
-                    slice
-                        .read_exact(&mut keys.encryption)
-                        .map_err(|_| Error::InvalidKeyfile)?;
-                    slice
-                        .read_exact(&mut keys.hmac)
-                        .map_err(|_| Error::InvalidKeyfile)?;
-                }
+                Keys::import(&key_data[..])
             }
-        };
-
-        Ok(keys)
+        }
     }
 }
