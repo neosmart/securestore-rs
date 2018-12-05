@@ -7,7 +7,7 @@ mod tests;
 
 use self::shared::{EncryptedBlob, Keys, Vault};
 use crate::errors::Error;
-pub use crate::serial::{BinarySerializable, BinaryDeserializable};
+pub use crate::serial::{BinaryDeserializable, BinarySerializable};
 use openssl::rand;
 use std::fs::File;
 use std::path::{Path, PathBuf};

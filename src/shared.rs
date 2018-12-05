@@ -3,6 +3,7 @@
 
 use crate::errors::Error;
 use openssl::rand;
+use serde::{Deserialize, Deserializer, Serializer};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -29,6 +30,7 @@ pub struct Vault {
     /// The version of the serialized vault
     pub version: u32,
     /// The initialization vector for key derivation
+    #[serde(serialize_with = "nullable_to_base64", deserialize_with = "nullable_iv_from_base64")]
     pub iv: Option<[u8; IV_SIZE]>,
     /// The secrets we are tasked with protecting, sorted for version control friendliness.
     pub data: BTreeMap<String, EncryptedBlob>,
@@ -37,9 +39,86 @@ pub struct Vault {
 /// A single secret, independently encrypted and individually decrypted on-demand.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EncryptedBlob {
+    #[serde(serialize_with = "to_base64", deserialize_with = "iv_from_base64")]
     pub iv: [u8; IV_SIZE],
+    #[serde(serialize_with = "to_base64", deserialize_with = "hmac_from_base64")]
     pub hmac: [u8; HMAC_SIZE],
+    #[serde(serialize_with = "to_base64", deserialize_with = "vec_from_base64")]
     pub payload: Vec<u8>,
+}
+
+pub fn nullable_to_base64<T, S>(value: &Option<T>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    T: AsRef<[u8]>,
+    S: Serializer,
+{
+    match value {
+        None => serializer.serialize_str(""),
+        Some(x) => serializer.serialize_str(&base64::encode(x.as_ref()))
+    }
+}
+
+pub fn to_base64<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+where
+    T: AsRef<[u8]>,
+    S: Serializer,
+{
+    serializer.serialize_str(&base64::encode(value.as_ref()))
+}
+
+pub fn nullable_iv_from_base64<'de, D>(deserializer: D) -> Result<Option<[u8; IV_SIZE]>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    let b64: &str = Deserialize::deserialize(deserializer)?;
+
+    if b64.len() == 0 {
+        return Ok(None);
+    }
+
+    let mut result = [0u8; IV_SIZE];
+    base64::decode_config_slice(b64, base64::STANDARD, &mut result)
+        .map_err(|e| Error::custom(e.to_string()))?;
+
+    Ok(Some(result))
+}
+
+pub fn iv_from_base64<'de, D>(deserializer: D) -> Result<[u8; IV_SIZE], D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    let b64: &str = Deserialize::deserialize(deserializer)?;
+
+    let mut result = [0u8; IV_SIZE];
+    base64::decode_config_slice(b64, base64::STANDARD, &mut result)
+        .map_err(|e| Error::custom(e.to_string()))?;
+
+    Ok(result)
+}
+
+pub fn hmac_from_base64<'de, D>(deserializer: D) -> Result<[u8; HMAC_SIZE], D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    let b64: &str = Deserialize::deserialize(deserializer)?;
+
+    let mut result = [0u8; HMAC_SIZE];
+    base64::decode_config_slice(b64, base64::STANDARD, &mut result)
+        .map_err(|e| Error::custom(e.to_string()))?;
+
+    Ok(result)
+}
+
+pub fn vec_from_base64<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    let s: &str = Deserialize::deserialize(deserializer)?;
+    base64::decode(s).map_err(|e| Error::custom(e.to_string()))
 }
 
 impl Vault {

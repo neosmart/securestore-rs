@@ -26,4 +26,3 @@ impl BinarySerializable for &str {
         self.as_bytes().to_vec()
     }
 }
-
