@@ -1,6 +1,8 @@
 #![feature(nll)]
 mod errors;
 mod shared;
+#[cfg(test)]
+mod tests;
 
 use self::shared::{Keys, Vault};
 use crate::errors::Error;
