@@ -71,14 +71,14 @@ where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
-    let b64: &str = Deserialize::deserialize(deserializer)?;
+    let b64: String = Deserialize::deserialize(deserializer)?;
 
     if b64.len() == 0 {
         return Ok(None);
     }
 
     let mut result = [0u8; IV_SIZE];
-    base64::decode_config_slice(b64, base64::STANDARD, &mut result)
+    base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
         .map_err(|e| Error::custom(e.to_string()))?;
 
     Ok(Some(result))
@@ -89,10 +89,10 @@ where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
-    let b64: &str = Deserialize::deserialize(deserializer)?;
+    let b64: String = Deserialize::deserialize(deserializer)?;
 
     let mut result = [0u8; IV_SIZE];
-    base64::decode_config_slice(b64, base64::STANDARD, &mut result)
+    base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
         .map_err(|e| Error::custom(e.to_string()))?;
 
     Ok(result)
@@ -103,10 +103,10 @@ where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
-    let b64: &str = Deserialize::deserialize(deserializer)?;
+    let b64: String = Deserialize::deserialize(deserializer)?;
 
     let mut result = [0u8; HMAC_SIZE];
-    base64::decode_config_slice(b64, base64::STANDARD, &mut result)
+    base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
         .map_err(|e| Error::custom(e.to_string()))?;
 
     Ok(result)
@@ -117,8 +117,8 @@ where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
-    let s: &str = Deserialize::deserialize(deserializer)?;
-    base64::decode(s).map_err(|e| Error::custom(e.to_string()))
+    let s: String = Deserialize::deserialize(deserializer)?;
+    base64::decode(&s).map_err(|e| Error::custom(e.to_string()))
 }
 
 impl Vault {
