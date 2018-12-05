@@ -65,4 +65,3 @@ fn blob_authentication() {
         "Authentication for known-bad blob succeeded"
     );
 }
-

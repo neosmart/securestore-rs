@@ -90,6 +90,7 @@ impl Vault {
 /// implementing authenticated encryption (as AES-CBC and HMAC-SHA1), but out of
 /// an abundance of precaution we create/derive two separate keys entirely for
 /// these two operations.
+#[derive(Debug, Eq, PartialEq)]
 pub struct Keys {
     /// The key used to encrypt the secrets.
     pub encryption: [u8; KEY_LENGTH],
@@ -188,4 +189,3 @@ impl EncryptedBlob {
         openssl::memcmp::eq(&hmac, &self.hmac)
     }
 }
-
