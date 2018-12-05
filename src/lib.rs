@@ -1,11 +1,13 @@
 #![feature(nll)]
 mod errors;
+mod serial;
 mod shared;
 #[cfg(test)]
 mod tests;
 
-use self::shared::{Keys, Vault};
+use self::shared::{EncryptedBlob, Keys, Vault};
 use crate::errors::Error;
+pub use crate::serial::{BinarySerializable, BinaryDeserializable};
 use openssl::rand;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -67,6 +69,24 @@ impl SecretsManager {
     /// equivalent representation on-disk.
     pub fn export_keyfile<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         self.keys.export(path)
+    }
+
+    /// Decrypts and retrieves a single secret from the loaded store. If the secret
+    /// cannot be found, returns [`Option::None`].
+    pub fn retrieve<T: BinaryDeserializable>(&self, name: &str) -> Result<T, Error> {
+        match self.vault.data.get(name) {
+            None => Err(Error::SecretNotFound),
+            Some(blob) => {
+                let decrypted = blob.decrypt(&self.keys)?;
+                Ok(T::deserialize(decrypted))
+            }
+        }
+    }
+
+    /// Adds a new secret or replaces an existing secret identified by `name` to the store.
+    pub fn set<T: BinarySerializable>(&mut self, name: &str, value: T) -> () {
+        let encrypted = EncryptedBlob::encrypt(&self.keys, &T::serialize(&value));
+        self.vault.data.insert(name.to_string(), encrypted);
     }
 }
 

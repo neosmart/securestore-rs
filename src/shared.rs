@@ -79,7 +79,8 @@ impl Vault {
         let path = dest.as_ref();
 
         let file = File::create(path).map_err(Error::Io)?;
-        serde_json::to_writer(file, &self).map_err(Error::Serde)
+        // using `to_writer_pretty()` makes changes to the store play nicer with version control
+        serde_json::to_writer_pretty(file, &self).map_err(Error::Serde)
     }
 }
 
