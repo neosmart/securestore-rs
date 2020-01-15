@@ -1,5 +1,5 @@
-//! This module houses various implementations of [`BinarySerializable`] which are natively
-//! supported payloads for secrets.
+//! This module houses various implementations of [`BinarySerializable`] which
+//! are natively supported payloads for secrets.
 
 pub trait BinarySerializable {
     fn serialize(&self) -> Vec<u8>;
