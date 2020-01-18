@@ -5,7 +5,7 @@ mod shared;
 #[cfg(test)]
 mod tests;
 
-use self::shared::{EncryptedBlob, Keys, Vault};
+use self::shared::{EncryptedBlob, CryptoKeys, Vault};
 use crate::errors::{Error, ErrorKind};
 pub use crate::serial::{BinaryDeserializable, BinarySerializable};
 use openssl::rand;
@@ -26,7 +26,7 @@ pub enum KeySource<'a> {
 pub struct SecretsManager {
     vault: Vault,
     path: PathBuf,
-    keys: Keys,
+    cryptokeys: CryptoKeys,
 }
 
 impl SecretsManager {
@@ -37,7 +37,7 @@ impl SecretsManager {
 
         let vault = Vault::new();
         Ok(SecretsManager {
-            keys: key_source.extract_keys(&vault.iv)?,
+            cryptokeys: key_source.extract_keys(&vault.iv)?,
             path: PathBuf::from(path),
             vault,
         })
@@ -50,7 +50,7 @@ impl SecretsManager {
 
         let vault = Vault::from_file(path)?;
         Ok(SecretsManager {
-            keys: key_source.extract_keys(&vault.iv)?,
+            cryptokeys: key_source.extract_keys(&vault.iv)?,
             path: PathBuf::from(path),
             vault,
         })
@@ -69,7 +69,7 @@ impl SecretsManager {
     /// interactively) derived from passwords to an equivalent
     /// representation on-disk.
     pub fn export_keyfile<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
-        self.keys.export(path)
+        self.cryptokeys.export(path)
     }
 
     /// Decrypts and gets a single secret from the loaded store. If the secret
@@ -78,7 +78,7 @@ impl SecretsManager {
         match self.vault.secrets.get(name) {
             None => ErrorKind::SecretNotFound.into(),
             Some(blob) => {
-                let decrypted = blob.decrypt(&self.keys)?;
+                let decrypted = blob.decrypt(&self.cryptokeys)?;
                 Ok(T::deserialize(decrypted))
             }
         }
@@ -87,19 +87,31 @@ impl SecretsManager {
     /// Adds a new secret or replaces an existing secret identified by `name` to
     /// the store.
     pub fn set<T: BinarySerializable>(&mut self, name: &str, value: T) -> () {
-        let encrypted = EncryptedBlob::encrypt(&self.keys, &T::serialize(&value));
+        let encrypted = EncryptedBlob::encrypt(&self.cryptokeys, &T::serialize(&value));
         self.vault.secrets.insert(name.to_string(), encrypted);
+    }
+
+    /// Remove a secret identified by `name` from the store.
+    pub fn remove(&mut self, name: &str) -> Result<(), Error> {
+        self.vault.secrets.remove(name)
+            .ok_or(ErrorKind::SecretNotFound.into())
+            .map(|_| ())
+    }
+
+    /// Retrieve a list of the names of secrets stored in the vault.
+    pub fn keys<'a>(&'a self) -> impl Iterator<Item=&'a str> {
+        self.vault.secrets.keys().map(|s| s.as_str())
     }
 }
 
 impl<'a> KeySource<'a> {
-    fn extract_keys(&self, iv: &[u8; shared::IV_SIZE]) -> Result<Keys, Error> {
+    fn extract_keys(&self, iv: &[u8; shared::IV_SIZE]) -> Result<CryptoKeys, Error> {
         match &self {
             KeySource::Generate => {
                 let mut buffer = [0u8; shared::KEY_COUNT * shared::KEY_LENGTH];
                 rand::rand_bytes(&mut buffer).expect("Key generation failure!");
 
-                Keys::import(&buffer[..])
+                CryptoKeys::import(&buffer[..])
             }
             KeySource::File(path) => {
                 let attr = std::fs::metadata(path)?;
@@ -108,7 +120,7 @@ impl<'a> KeySource<'a> {
                 }
 
                 let file = File::open(path)?;
-                Keys::import(&file)
+                CryptoKeys::import(&file)
             }
             KeySource::Password(password) => {
                 use openssl::hash::MessageDigest;
@@ -124,7 +136,7 @@ impl<'a> KeySource<'a> {
                 )
                 .expect("PBKDF2 key generation failed!");
 
-                Keys::import(&key_data[..])
+                CryptoKeys::import(&key_data[..])
             }
         }
     }

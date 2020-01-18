@@ -175,14 +175,14 @@ impl Vault {
 /// out of an abundance of precaution we create/derive two separate keys
 /// entirely for these two operations.
 #[derive(Debug, Eq, PartialEq)]
-pub struct Keys {
+pub struct CryptoKeys {
     /// The key used to encrypt the secrets.
     pub encryption: [u8; KEY_LENGTH],
     /// The key used to generate the HMAC used for authenticated encryption.
     pub hmac: [u8; KEY_LENGTH],
 }
 
-impl Keys {
+impl CryptoKeys {
     /// Exports the private key(s) resident in memory to a path on-disk. The
     /// exact binary format (including key order) lines up with other
     /// implementations.
@@ -197,7 +197,7 @@ impl Keys {
 
     /// Imports keys from a bytestream
     pub fn import<R: Read>(mut source: R) -> Result<Self, Error> {
-        let mut keys: Keys = Keys {
+        let mut keys: CryptoKeys = CryptoKeys {
             encryption: [0u8; KEY_LENGTH],
             hmac: [0u8; KEY_LENGTH],
         };
@@ -220,7 +220,7 @@ use openssl::symm::{self, Cipher};
 
 impl EncryptedBlob {
     /// Creates an `EncryptedBlob` from a plaintext secret.
-    pub(crate) fn encrypt(keys: &Keys, secret: &[u8]) -> EncryptedBlob {
+    pub(crate) fn encrypt(keys: &CryptoKeys, secret: &[u8]) -> EncryptedBlob {
         let cipher = Cipher::aes_128_cbc();
         let mut iv = [0u8; KEY_LENGTH];
 
@@ -239,7 +239,7 @@ impl EncryptedBlob {
 
     /// Decrypts an `EncryptedBlob` object and retrieves the plaintext
     /// equivalent of `[EncryptedBlob::Data]`.
-    pub(crate) fn decrypt(&self, keys: &Keys) -> Result<Vec<u8>, Error> {
+    pub(crate) fn decrypt(&self, keys: &CryptoKeys) -> Result<Vec<u8>, Error> {
         if !self.authenticate(&keys.hmac) {
             return ErrorKind::DecryptionFailure.into();
         }
