@@ -11,27 +11,30 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 /// The number of keys we require to be derived from source materials
-pub const KEY_COUNT: usize = 2;
+pub(crate) const KEY_COUNT: usize = 2;
 /// The length of each individual key in bytes
-pub const KEY_LENGTH: usize = 128 / 8;
+pub(crate) const KEY_LENGTH: usize = 128 / 8;
 /// The number of rounds used for PBKDF2 key derivation
-pub const PBKDF2_ROUNDS: usize = 10000usize;
+pub(crate) const PBKDF2_ROUNDS: usize = 10000usize;
 /// The size of an initialization vector in bytes
-pub const IV_SIZE: usize = KEY_LENGTH;
+pub(crate) const IV_SIZE: usize = KEY_LENGTH;
 /// The latest version of the vault schema
-pub const SCHEMA_VERSION: u32 = 2;
+pub(crate) const SCHEMA_VERSION: u32 = 2;
 /// The length of a single HMAC result in bytes
-pub const HMAC_SIZE: usize = 160 / 8; // HMAC-SHA1
+pub(crate) const HMAC_SIZE: usize = 160 / 8; // HMAC-SHA1
 
 /// A representation of the on-disk encrypted secrets store. Read and written
 /// via `[SecretsManager]`.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Vault {
+pub(crate) struct Vault {
     /// The version of the serialized vault
     pub version: u32,
     /// The initialization vector for key derivation
     #[serde(serialize_with = "to_base64", deserialize_with = "iv_from_base64")]
     pub iv: [u8; IV_SIZE],
+    /// An optional sentinel, used to verify that the same key/password is used
+    /// across invocations.
+    pub sentinel: Option<EncryptedBlob>,
     /// The secrets we are tasked with protecting, sorted for version control
     /// friendliness.
     pub secrets: BTreeMap<String, EncryptedBlob>,
@@ -40,7 +43,7 @@ pub struct Vault {
 /// A single secret, independently encrypted and individually decrypted
 /// on-demand.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct EncryptedBlob {
+pub(crate) struct EncryptedBlob {
     #[serde(serialize_with = "to_base64", deserialize_with = "iv_from_base64")]
     pub iv: [u8; IV_SIZE],
     #[serde(serialize_with = "to_base64", deserialize_with = "hmac_from_base64")]
@@ -60,7 +63,7 @@ pub struct EncryptedBlob {
 //     }
 // }
 
-pub fn to_base64<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+fn to_base64<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
     T: AsRef<[u8]>,
     S: Serializer,
@@ -86,7 +89,7 @@ where
 //     Ok(Some(result))
 // }
 
-pub fn iv_from_base64<'de, D>(deserializer: D) -> Result<[u8; IV_SIZE], D::Error>
+fn iv_from_base64<'de, D>(deserializer: D) -> Result<[u8; IV_SIZE], D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -100,7 +103,7 @@ where
     Ok(result)
 }
 
-pub fn hmac_from_base64<'de, D>(deserializer: D) -> Result<[u8; HMAC_SIZE], D::Error>
+fn hmac_from_base64<'de, D>(deserializer: D) -> Result<[u8; HMAC_SIZE], D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -114,7 +117,7 @@ where
     Ok(result)
 }
 
-pub fn vec_from_base64<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+fn vec_from_base64<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -132,6 +135,7 @@ impl Vault {
             version: SCHEMA_VERSION,
             iv: iv,
             secrets: Default::default(),
+            sentinel: None,
         }
     }
 
@@ -175,7 +179,7 @@ impl Vault {
 /// out of an abundance of precaution we create/derive two separate keys
 /// entirely for these two operations.
 #[derive(Debug, Eq, PartialEq)]
-pub struct CryptoKeys {
+pub(crate) struct CryptoKeys {
     /// The key used to encrypt the secrets.
     pub encryption: [u8; KEY_LENGTH],
     /// The key used to generate the HMAC used for authenticated encryption.
@@ -239,7 +243,7 @@ impl EncryptedBlob {
 
     /// Decrypts an `EncryptedBlob` object and retrieves the plaintext
     /// equivalent of `[EncryptedBlob::Data]`.
-    pub(crate) fn decrypt(&self, keys: &CryptoKeys) -> Result<Vec<u8>, Error> {
+    pub fn decrypt(&self, keys: &CryptoKeys) -> Result<Vec<u8>, Error> {
         if !self.authenticate(&keys.hmac) {
             return ErrorKind::DecryptionFailure.into();
         }
@@ -255,11 +259,9 @@ impl EncryptedBlob {
         &iv: &[u8; IV_SIZE],
         encrypted: &[u8],
     ) -> [u8; HMAC_SIZE] {
-        let key = PKey::hmac(&hmac_key)
-            .expect("Failed to load HMAC encryption key!");
+        let key = PKey::hmac(&hmac_key).expect("Failed to load HMAC encryption key!");
         let mut signer =
-            Signer::new(MessageDigest::sha1(), &key)
-            .expect("Failed to create HMAC signer!");
+            Signer::new(MessageDigest::sha1(), &key).expect("Failed to create HMAC signer!");
 
         signer.update(&iv).unwrap();
         signer.update(&encrypted).unwrap();
@@ -274,7 +276,7 @@ impl EncryptedBlob {
     }
 
     /// Authenticates the encrypted payload against the provided HMAC key
-    pub(crate) fn authenticate(&self, &hmac_key: &[u8; KEY_LENGTH]) -> bool {
+    pub fn authenticate(&self, &hmac_key: &[u8; KEY_LENGTH]) -> bool {
         let hmac = Self::calculate_hmac(&hmac_key, &self.iv, &self.payload);
         openssl::memcmp::eq(&hmac, &self.hmac)
     }

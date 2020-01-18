@@ -5,7 +5,7 @@ mod shared;
 #[cfg(test)]
 mod tests;
 
-use self::shared::{EncryptedBlob, CryptoKeys, Vault};
+use self::shared::{CryptoKeys, EncryptedBlob, Vault};
 use crate::errors::{Error, ErrorKind};
 pub use crate::serial::{BinaryDeserializable, BinarySerializable};
 use openssl::rand;
@@ -30,14 +30,22 @@ pub struct SecretsManager {
 }
 
 impl SecretsManager {
+    fn create_sentinel(keys: &CryptoKeys) -> EncryptedBlob {
+        let mut random = [0u8; shared::IV_SIZE * 2];
+        rand::rand_bytes(&mut random).expect("Failed to create sentinel");
+        EncryptedBlob::encrypt(&keys, &random)
+    }
+
     /// Creates a new vault on-disk at path `path` and loads it in a new
     /// instance of `SecretsManager`.
     pub fn new<P: AsRef<Path>>(path: P, key_source: KeySource) -> Result<Self, Error> {
         let path = path.as_ref();
 
-        let vault = Vault::new();
+        let mut vault = Vault::new();
+        let keys = key_source.extract_keys(&vault.iv)?;
+        vault.sentinel = Some(Self::create_sentinel(&keys));
         Ok(SecretsManager {
-            cryptokeys: key_source.extract_keys(&vault.iv)?,
+            cryptokeys: keys,
             path: PathBuf::from(path),
             vault,
         })
@@ -48,12 +56,24 @@ impl SecretsManager {
     pub fn load<P: AsRef<Path>>(path: P, key_source: KeySource) -> Result<Self, Error> {
         let path = path.as_ref();
 
-        let vault = Vault::from_file(path)?;
-        Ok(SecretsManager {
-            cryptokeys: key_source.extract_keys(&vault.iv)?,
+        let mut vault = Vault::from_file(path)?;
+        let keys = key_source.extract_keys(&vault.iv)?;
+
+        // The sentinel is an optional part of the spec that prevents inadvertently
+        // adding two secrets with two different passwords. It is not intended to
+        // have any effects on the security or entropy of the store.
+        if let Some(ref sentinel) = vault.sentinel {
+            sentinel.decrypt(&keys)?;
+        } else {
+            vault.sentinel = Some(Self::create_sentinel(&keys));
+        }
+
+        let sman = SecretsManager {
+            cryptokeys: keys,
             path: PathBuf::from(path),
             vault,
-        })
+        };
+        Ok(sman)
     }
 
     /// Saves changes to the underlying vault specified by the path supplied
@@ -93,13 +113,15 @@ impl SecretsManager {
 
     /// Remove a secret identified by `name` from the store.
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
-        self.vault.secrets.remove(name)
+        self.vault
+            .secrets
+            .remove(name)
             .ok_or(ErrorKind::SecretNotFound.into())
             .map(|_| ())
     }
 
     /// Retrieve a list of the names of secrets stored in the vault.
-    pub fn keys<'a>(&'a self) -> impl Iterator<Item=&'a str> {
+    pub fn keys<'a>(&'a self) -> impl Iterator<Item = &'a str> {
         self.vault.secrets.keys().map(|s| s.as_str())
     }
 }

@@ -247,11 +247,6 @@ fn run(mode: Mode, store: &Path, keysource: KeySource) -> Result<(), Box<dyn std
             }
         }
         Mode::Get(GetKey::All, OutputFormat::Json) => {
-            // struct JsonKeyValue<'a> {
-            //     key: &'a str,
-            //     value: &'a str,
-            // }
-
             let dump: Vec<_> = sman
                 .keys()
                 .map(|key| {
@@ -262,7 +257,8 @@ fn run(mode: Mode, store: &Path, keysource: KeySource) -> Result<(), Box<dyn std
                 })
                 .collect();
 
-            let json = serde_json::to_string_pretty(&dump).expect("Failed to serialize secrets export!");
+            let json =
+                serde_json::to_string_pretty(&dump).expect("Failed to serialize secrets export!");
             println!("{}", json);
         }
         Mode::Set(key, value) => sman.set(key, value),
@@ -285,9 +281,7 @@ fn secure_read() -> String {
     loop {
         let getch = getch::Getch::new();
         let c = match getch.getch() {
-            Ok(c) => {
-                c
-            }
+            Ok(c) => c,
             Err(_) => break,
         };
 
@@ -295,7 +289,7 @@ fn secure_read() -> String {
             b'\n' => {
                 eprintln!("");
                 break;
-            },
+            }
             BKSPC_IN => {
                 if input.len() > 0 {
                     input.truncate(input.len() - 1);
