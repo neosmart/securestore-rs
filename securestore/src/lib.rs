@@ -75,7 +75,7 @@ impl SecretsManager {
     /// Decrypts and gets a single secret from the loaded store. If the secret
     /// cannot be found, returns `Err(ErrorKind::SecretNotFound)`
     pub fn get<T: BinaryDeserializable>(&self, name: &str) -> Result<T, Error> {
-        match self.vault.data.get(name) {
+        match self.vault.secrets.get(name) {
             None => ErrorKind::SecretNotFound.into(),
             Some(blob) => {
                 let decrypted = blob.decrypt(&self.keys)?;
@@ -88,7 +88,7 @@ impl SecretsManager {
     /// the store.
     pub fn set<T: BinarySerializable>(&mut self, name: &str, value: T) -> () {
         let encrypted = EncryptedBlob::encrypt(&self.keys, &T::serialize(&value));
-        self.vault.data.insert(name.to_string(), encrypted);
+        self.vault.secrets.insert(name.to_string(), encrypted);
     }
 }
 

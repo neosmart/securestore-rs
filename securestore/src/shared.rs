@@ -19,7 +19,7 @@ pub const PBKDF2_ROUNDS: usize = 10000usize;
 /// The size of an initialization vector in bytes
 pub const IV_SIZE: usize = KEY_LENGTH;
 /// The latest version of the vault schema
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 /// The length of a single HMAC result in bytes
 pub const HMAC_SIZE: usize = 160 / 8; // HMAC-SHA1
 
@@ -34,7 +34,7 @@ pub struct Vault {
     pub iv: [u8; IV_SIZE],
     /// The secrets we are tasked with protecting, sorted for version control
     /// friendliness.
-    pub data: BTreeMap<String, EncryptedBlob>,
+    pub secrets: BTreeMap<String, EncryptedBlob>,
 }
 
 /// A single secret, independently encrypted and individually decrypted
@@ -131,7 +131,7 @@ impl Vault {
         Vault {
             version: SCHEMA_VERSION,
             iv: iv,
-            data: Default::default(),
+            secrets: Default::default(),
         }
     }
 
