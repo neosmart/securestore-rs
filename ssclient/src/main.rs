@@ -4,6 +4,10 @@ use serde_json::json;
 use std::io::Write;
 use std::path::Path;
 
+const ENOENT: i32 = 2;
+const EEXIST: i32 = 17;
+const STATUS_CONTROL_C_EXIT: i32 = 0xC000013Au32 as i32;
+
 #[derive(Debug, PartialEq)]
 enum Mode<'a> {
     Get(GetKey<'a>, OutputFormat),
@@ -135,7 +139,7 @@ fn main() {
         Some(name) => name,
         None => {
             eprintln!("{}", args.usage());
-            std::process::exit(0);
+            return;
         }
     };
 
@@ -176,7 +180,8 @@ fn main() {
 
     if mode != Mode::Create && !store.exists() {
         eprintln!("Cannot find secure store: {}", store.display());
-        std::process::exit(2); // 2 is both ENOENT and ERROR_FILE_NOT_FOUND 👍
+        // 0x02 is both ENOENT and ERROR_FILE_NOT_FOUND 👍
+        std::process::exit(ENOENT);
     }
 
     let mut password;
@@ -232,7 +237,16 @@ fn run(mode: Mode, store: &Path, keysource: KeySource) -> Result<(), Box<dyn std
     };
 
     let mut sman = match &mode {
-        Mode::Create => SecretsManager::new(store, keysource)?,
+        Mode::Create => {
+            if store.exists() && std::fs::metadata(store).unwrap().len() > 0 {
+                eprint!("Overwrite existing keystore {}? [y/n] ", store.display());
+                if !confirm() {
+                    eprintln!("New store creation aborted.");
+                    std::process::exit(EEXIST);
+                }
+            }
+            SecretsManager::new(store, keysource)?
+        }
         _ => SecretsManager::load(store, keysource)?,
     };
 
@@ -276,7 +290,19 @@ fn run(mode: Mode, store: &Path, keysource: KeySource) -> Result<(), Box<dyn std
     Ok(())
 }
 
-fn secure_read() -> String {
+fn confirm() -> bool {
+    let is_tty = atty::is(atty::Stream::Stdin);
+    if !is_tty {
+        return true;
+    }
+
+    // stdin.read_line(..) doesn't give us a way to detect Ctrl+C on Windows
+    let input = read();
+    let line = input.trim().to_lowercase();
+    line == "y" || line == "yes"
+}
+
+fn read_masked(mask_input: bool) -> String {
     const CTRL_C: u8 = 0x03; // ASCII ETX on Windows
     const BKSPC: u8 = 0x08;
     const BKSPC_TERMIOS: u8 = 0x7F;
@@ -301,7 +327,7 @@ fn secure_read() -> String {
                 // We only reach here on platforms without a signal handler installed
                 // by default, i.e. Windows.
                 eprintln!("");
-                std::process::exit(1);
+                std::process::exit(STATUS_CONTROL_C_EXIT);
             }
             BKSPC | BKSPC_TERMIOS => {
                 if input.len() > 0 {
@@ -311,10 +337,22 @@ fn secure_read() -> String {
             }
             c => {
                 input.push(c as char);
-                stderr.write(&[b'*']).unwrap();
+                if mask_input {
+                    stderr.write(&[b'*']).unwrap();
+                } else {
+                    stderr.write(&[c]).unwrap();
+                }
             }
         }
     }
 
     input
+}
+
+fn read() -> String {
+    read_masked(false)
+}
+
+fn secure_read() -> String {
+    read_masked(true)
 }
