@@ -277,8 +277,9 @@ fn run(mode: Mode, store: &Path, keysource: KeySource) -> Result<(), Box<dyn std
 }
 
 fn secure_read() -> String {
-    const BKSPC_IN: u8 = 0x7F;
-    const BKSPC_OUT: u8 = 0x08;
+    const CTRL_C: u8 = 0x03; // ASCII ETX on Windows
+    const BKSPC: u8 = 0x08;
+    const BKSPC_TERMIOS: u8 = 0x7F;
 
     let mut input = String::new();
     input.reserve(16);
@@ -292,14 +293,20 @@ fn secure_read() -> String {
         };
 
         match c {
-            b'\n' => {
+            b'\r' | b'\n' => {
                 eprintln!("");
                 break;
             }
-            BKSPC_IN => {
+            CTRL_C => {
+                // We only reach here on platforms without a signal handler installed
+                // by default, i.e. Windows.
+                eprintln!("");
+                std::process::exit(1);
+            }
+            BKSPC | BKSPC_TERMIOS => {
                 if input.len() > 0 {
                     input.truncate(input.len() - 1);
-                    stderr.write(&[BKSPC_OUT, b' ', BKSPC_OUT]).unwrap();
+                    stderr.write(&[BKSPC, b' ', BKSPC]).unwrap();
                 }
             }
             c => {
