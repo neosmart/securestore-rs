@@ -224,7 +224,7 @@ use openssl::symm::{self, Cipher};
 
 impl EncryptedBlob {
     /// Creates an `EncryptedBlob` from a plaintext secret.
-    pub(crate) fn encrypt(keys: &CryptoKeys, secret: &[u8]) -> EncryptedBlob {
+    pub fn encrypt<'a>(keys: &CryptoKeys, secret: &'a [u8]) -> EncryptedBlob {
         let cipher = Cipher::aes_128_cbc();
         let mut iv = [0u8; KEY_LENGTH];
 

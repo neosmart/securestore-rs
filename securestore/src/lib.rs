@@ -19,8 +19,9 @@ pub enum KeySource<'a> {
     File(&'a Path),
     /// Derive keys from the specified password
     Password(&'a str),
-    /// Automatically generate new keys from a secure RNG. [`SecretsManager::export_keyfile()']
-    /// should be used to export the keys before the instance is disposed.
+    /// Automatically generate new keys from a secure RNG.
+    /// [`SecretsManager::export_keyfile()'] should be used to export the
+    /// keys before the instance is disposed.
     Csprng,
 }
 
@@ -107,7 +108,8 @@ impl SecretsManager {
             None => ErrorKind::SecretNotFound.into(),
             Some(blob) => {
                 let decrypted = blob.decrypt(&self.cryptokeys)?;
-                Ok(T::deserialize(decrypted))
+                T::deserialize(decrypted)
+                    .map_err(|e| Error::from_inner(ErrorKind::DeserializationError, e))
             }
         }
     }
@@ -115,7 +117,7 @@ impl SecretsManager {
     /// Adds a new secret or replaces an existing secret identified by `name` to
     /// the store.
     pub fn set<T: BinarySerializable>(&mut self, name: &str, value: T) -> () {
-        let encrypted = EncryptedBlob::encrypt(&self.cryptokeys, &T::serialize(&value));
+        let encrypted = EncryptedBlob::encrypt(&self.cryptokeys, T::serialize(&value));
         self.vault.secrets.insert(name.to_string(), encrypted);
     }
 

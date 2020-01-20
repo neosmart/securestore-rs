@@ -5,8 +5,14 @@ pub enum ErrorKind {
     /// May be caused by using the wrong key or attempting to load ciphertext
     /// that has been tampered with.
     DecryptionFailure,
+    /// The type converter failed to convert the decrypted payload.
+    DeserializationError,
+    /// The requested secret was not found in the store.
     SecretNotFound,
+    /// The vault was created with a version that is not supported by this
+    /// library.
     UnsupportedVaultVersion,
+    /// An IO error occurred reading/writing from/to the store.
     IoError,
     /// An error occurred during the (de)serialization process.
     InvalidStore,
@@ -14,14 +20,20 @@ pub enum ErrorKind {
 
 #[derive(Debug)]
 pub struct Error {
-    inner: Option<Box<dyn std::error::Error + 'static + Send>>,
+    inner: Option<Box<dyn std::error::Error + 'static>>,
     kind: ErrorKind,
-    message: Option<String>,
 }
 
 impl Error {
     pub fn kind(&self) -> ErrorKind {
         self.kind
+    }
+
+    pub fn from_inner(kind: ErrorKind, inner: Box<dyn std::error::Error + 'static>) -> Self {
+        Error {
+            kind,
+            inner: Some(inner),
+        }
     }
 }
 
@@ -33,11 +45,7 @@ impl PartialEq for Error {
 
 impl std::convert::From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Error {
-        Error {
-            kind,
-            inner: None,
-            message: None,
-        }
+        Error { kind, inner: None }
     }
 }
 
@@ -58,7 +66,6 @@ impl std::convert::From<std::io::Error> for Error {
         Error {
             inner: Some(Box::new(e)),
             kind: ErrorKind::IoError,
-            message: None,
         }
     }
 }
@@ -68,7 +75,6 @@ impl std::convert::From<serde_json::Error> for Error {
         Error {
             inner: Some(Box::new(e)),
             kind: ErrorKind::InvalidStore,
-            message: None,
         }
     }
 }
@@ -78,7 +84,6 @@ impl std::convert::From<openssl::error::ErrorStack> for Error {
         Error {
             inner: Some(Box::new(e)),
             kind: ErrorKind::DecryptionFailure,
-            message: None,
         }
     }
 }
@@ -90,7 +95,8 @@ impl std::fmt::Display for Error {
             ErrorKind::DecryptionFailure => "There was an error decrypting the secrets store. Check the password or key file and verify the store has not been tampered with",
             ErrorKind::SecretNotFound => "No secret was found with the specified name",
             ErrorKind::UnsupportedVaultVersion => "An attempt was made to open a vault with an unsupported version",
-            ErrorKind::IoError => "An IO error occurred",
+            ErrorKind::IoError => "An IO error occurred reading or writing from/to the secrets store",
+            ErrorKind::DeserializationError => "An error occured in the type converter deserializing the secret to the requested type",
             ErrorKind::InvalidStore => "The contents of the store did not match what was expected",
         };
 

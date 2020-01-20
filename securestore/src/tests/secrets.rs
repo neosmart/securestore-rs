@@ -52,7 +52,10 @@ fn secret_not_found() {
     let secrets_path = NamedTempFile::new().unwrap();
     let sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
 
-    assert_eq!(Err(ErrorKind::SecretNotFound.into()), sman.get::<String>("foo"));
+    assert_eq!(
+        Err(ErrorKind::SecretNotFound.into()),
+        sman.get::<String>("foo")
+    );
 }
 
 #[test]
@@ -80,4 +83,15 @@ fn invalid_key_file() {
         Ok(_) => panic!("SecretsManager loaded with invalid key file!"),
         Err(e) => assert_eq!(ErrorKind::InvalidKeyfile, e.kind()),
     }
+}
+
+#[test]
+fn binary_secret() {
+    let secrets_path = NamedTempFile::new().unwrap();
+    let mut sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
+
+    let (key, value) = ("secret", b"Hello, world!");
+    sman.set(key, &value[..]);
+
+    assert_eq!(&value[..], sman.get::<Vec<u8>>(key).unwrap().as_slice());
 }
