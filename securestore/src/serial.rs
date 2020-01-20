@@ -3,10 +3,14 @@
 //! implemented as a global impl for all `TryFrom<u8>`/`TryInto<u8>` as the
 //! binary conversion must be stable to survive cold storage.
 
+/// A trait enabling saving a secret of the implementing type to the secrets
+/// store.
 pub trait BinarySerializable {
     fn serialize<'a>(&'a self) -> &'a [u8];
 }
 
+/// A trait enabling retrieving a secret from the secrets store as an instance
+/// of the implementing type.
 pub trait BinaryDeserializable
 where
     Self: Sized,

@@ -1,3 +1,5 @@
+/// A strongly-typed enumeration of errors one can expect to encounter in using
+/// the SecureStore API.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ErrorKind {
     /// The key did not meet the requirements for a valid keyfile.
@@ -5,7 +7,8 @@ pub enum ErrorKind {
     /// May be caused by using the wrong key or attempting to load ciphertext
     /// that has been tampered with.
     DecryptionFailure,
-    /// The type converter failed to convert the decrypted payload.
+    /// The [`BinaryDeserializable`](crate::BinaryDeserializable) type converter
+    /// failed to convert the decrypted payload.
     DeserializationError,
     /// The requested secret was not found in the store.
     SecretNotFound,
@@ -14,10 +17,19 @@ pub enum ErrorKind {
     UnsupportedVaultVersion,
     /// An IO error occurred reading/writing from/to the store.
     IoError,
-    /// An error occurred during the (de)serialization process.
+    /// An error occurred during the (de)serialization of the secure store. This
+    /// typically implies either an incorrect file was loaded as the secrets
+    /// store, the file has been corrupted/truncated, or was produced by a
+    /// buggy or incompatible implementation.
     InvalidStore,
 }
 
+/// The high-level wrapper type for user-facing errors in the SecureStore API.
+///
+/// Individual errors are categorized as [`ErrorKind`], which implements
+/// [`PartialEq`] and [`Debug`](std::fmt::Debug), whereas `Error` itself cannot
+/// as that would constrain the possible values of wrapped inner errors to a
+/// too-strict subset of real-world values.
 #[derive(Debug)]
 pub struct Error {
     inner: Option<Box<dyn std::error::Error + 'static>>,
@@ -29,7 +41,11 @@ impl Error {
         self.kind
     }
 
-    pub fn from_inner(kind: ErrorKind, inner: Box<dyn std::error::Error + 'static>) -> Self {
+    pub fn inner(&self) -> Option<&dyn std::error::Error> {
+        self.inner.as_ref().map(|e| &**e)
+    }
+
+    pub(crate) fn from_inner(kind: ErrorKind, inner: Box<dyn std::error::Error + 'static>) -> Self {
         Error {
             kind,
             inner: Some(inner),
