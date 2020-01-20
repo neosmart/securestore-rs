@@ -227,7 +227,7 @@ fn run(mode: Mode, store: &Path, keysource: KeySource) -> Result<(), Box<dyn std
     let (keysource, key_export_path) = match (&mode, &keysource) {
         (Mode::Create, KeySource::File(path)) => {
             if !path.exists() || std::fs::metadata(path).unwrap().len() == 0 {
-                (KeySource::Generate, Some(path))
+                (KeySource::Csprng, Some(path))
             } else {
                 eprintln!("Using existing keyfile {}", path.display());
                 (keysource, None)

@@ -46,3 +46,38 @@ fn wrong_password() {
         }
     }
 }
+
+#[test]
+fn secret_not_found() {
+    let secrets_path = NamedTempFile::new().unwrap();
+    let sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
+
+    assert_eq!(Err(ErrorKind::SecretNotFound.into()), sman.get::<String>("foo"));
+}
+
+#[test]
+fn csprng_export() {
+    let secrets_path = NamedTempFile::new().unwrap();
+
+    let key_path = NamedTempFile::new().unwrap();
+    {
+        let mut sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
+        sman.export_keyfile(&key_path).unwrap();
+
+        sman.set("foo", "bar");
+        sman.save().unwrap();
+    }
+
+    let sman = SecretsManager::load(secrets_path, KeySource::File(key_path.as_ref())).unwrap();
+    assert_eq!(Ok("bar".to_owned()), sman.get("foo"));
+}
+
+#[test]
+fn invalid_key_file() {
+    let secrets_path = NamedTempFile::new().unwrap();
+    let key_path = NamedTempFile::new().unwrap();
+    match SecretsManager::new(&secrets_path, KeySource::File(key_path.as_ref())) {
+        Ok(_) => panic!("SecretsManager loaded with invalid key file!"),
+        Err(e) => assert_eq!(ErrorKind::InvalidKeyfile, e.kind()),
+    }
+}
