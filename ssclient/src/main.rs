@@ -131,9 +131,15 @@ fn main() {
         )
         .get_matches();
 
-    let mode_args = args
-        .subcommand_matches(args.subcommand_name().unwrap())
-        .unwrap();
+    let subcommand = match args.subcommand_name() {
+        Some(name) => name,
+        None => {
+            eprintln!("{}", args.usage());
+            std::process::exit(0);
+        }
+    };
+
+    let mode_args = args.subcommand_matches(subcommand).unwrap();
 
     // We can't use `.is_present()` as the default value would coerce a true result
     let store = if mode_args.occurrences_of("STORE") > 0 {
