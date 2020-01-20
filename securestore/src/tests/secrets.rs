@@ -38,10 +38,11 @@ fn wrong_password() {
     // And save the store to disk
     sman.save().unwrap();
 
-    // Now try decrypting with wrong password
-    let sman = SecretsManager::load(&secrets_path, KeySource::Password("notmysecret")).unwrap();
-    assert_eq!(
-        ErrorKind::DecryptionFailure,
-        sman.get::<String>("foo").unwrap_err().kind()
-    );
+    // Now try loading the store with wrong password
+    match SecretsManager::load(&secrets_path, KeySource::Password("notmysecret")) {
+        Ok(_) => panic!("Sentinel failed to detect wrong password on load"),
+        Err(e) => {
+            assert_eq!(ErrorKind::DecryptionFailure, e.kind());
+        }
+    }
 }

@@ -2,7 +2,7 @@ use crate::shared::*;
 use openssl::rand;
 
 #[cfg(test)]
-impl Default for Keys {
+impl Default for CryptoKeys {
     fn default() -> Self {
         let mut encryption_key = [0u8; KEY_LENGTH];
         let mut hmac_key = [0u8; KEY_LENGTH];
@@ -10,7 +10,7 @@ impl Default for Keys {
         rand::rand_bytes(&mut encryption_key).unwrap();
         rand::rand_bytes(&mut hmac_key).unwrap();
 
-        Keys {
+        CryptoKeys {
             encryption: encryption_key,
             hmac: hmac_key,
         }
@@ -20,7 +20,7 @@ impl Default for Keys {
 /// Tests basic encryption and decryption via [`EncryptedBlob`].
 #[test]
 fn basic_encryption_decryption() {
-    let keys: Keys = Default::default();
+    let keys: CryptoKeys = Default::default();
 
     let foo = EncryptedBlob::encrypt(&keys, b"foo");
     assert_eq!(
@@ -33,7 +33,7 @@ fn basic_encryption_decryption() {
 /// Verify that the same iv is not used twice in a row
 #[test]
 fn iv_uniqueness() {
-    let keys: Keys = Default::default();
+    let keys: CryptoKeys = Default::default();
 
     let foo1 = EncryptedBlob::encrypt(&keys, b"foo");
     let foo2 = EncryptedBlob::encrypt(&keys, b"foo");
@@ -51,7 +51,7 @@ fn iv_uniqueness() {
 /// Verify that tampered ciphertext is caught
 #[test]
 fn blob_authentication() {
-    let keys: Keys = Default::default();
+    let keys: CryptoKeys = Default::default();
 
     let mut foo = EncryptedBlob::encrypt(&keys, b"foo");
     assert!(
