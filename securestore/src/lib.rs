@@ -19,8 +19,9 @@ pub enum KeySource<'a> {
     File(&'a Path),
     /// Derive keys from the specified password
     Password(&'a str),
-    /// Automatically generate new keys from a secure RNG
-    Generate,
+    /// Automatically generate new keys from a secure RNG. [`SecretsManager::export_keyfile()']
+    /// should be used to export the keys before the instance is disposed.
+    Csprng,
 }
 
 /// The primary interface used for interacting with the SecureStore.
@@ -55,8 +56,11 @@ impl SecretsManager {
     /// Creates a new instance of `SecretsManager` referencing an existing vault
     /// located on-disk.
     pub fn load<P: AsRef<Path>>(path: P, key_source: KeySource) -> Result<Self, Error> {
-        debug_assert_ne!(KeySource::Generate, key_source,
-            "It is incorrect to call SecretsManager::load() except with an existing key source!");
+        debug_assert_ne!(
+            KeySource::Csprng,
+            key_source,
+            "It is incorrect to call SecretsManager::load() except with an existing key source!"
+        );
 
         let path = path.as_ref();
 
@@ -133,7 +137,7 @@ impl SecretsManager {
 impl<'a> KeySource<'a> {
     fn extract_keys(&self, iv: &[u8; shared::IV_SIZE]) -> Result<CryptoKeys, Error> {
         match &self {
-            KeySource::Generate => {
+            KeySource::Csprng => {
                 let mut buffer = [0u8; shared::KEY_COUNT * shared::KEY_LENGTH];
                 rand::rand_bytes(&mut buffer).expect("Key generation failure!");
 
