@@ -40,9 +40,10 @@ impl SecretsManager {
 
     /// Creates a new vault on-disk at path `path` and loads it in a new
     /// instance of `SecretsManager`.
-    pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, key_source: KeySource<P2>)
-        -> Result<Self, Error>
-    {
+    pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(
+        path: P1,
+        key_source: KeySource<P2>,
+    ) -> Result<Self, Error> {
         let path = path.as_ref();
 
         let mut vault = Vault::new();
@@ -57,7 +58,10 @@ impl SecretsManager {
 
     /// Creates a new instance of `SecretsManager` referencing an existing vault
     /// located on-disk.
-    pub fn load<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, key_source: KeySource<P2>) -> Result<Self, Error> {
+    pub fn load<P1: AsRef<Path>, P2: AsRef<Path>>(
+        path: P1,
+        key_source: KeySource<P2>,
+    ) -> Result<Self, Error> {
         match &key_source {
             KeySource::Csprng => debug_assert!(false,
             "It is incorrect to call SecretsManager::load() except with an existing key source!"),
@@ -156,7 +160,6 @@ impl<'a, P: AsRef<Path>> KeySource<'a, P> {
                 CryptoKeys::import(&file)
             }
             KeySource::Password(password) => {
-                use openssl::hash::MessageDigest;
                 use openssl::pkcs5::pbkdf2_hmac;
 
                 let mut key_data = [0u8; shared::KEY_COUNT * shared::KEY_LENGTH];
@@ -164,7 +167,7 @@ impl<'a, P: AsRef<Path>> KeySource<'a, P> {
                     password.as_bytes(),
                     iv,
                     shared::PBKDF2_ROUNDS,
-                    MessageDigest::sha1(),
+                    shared::PBKDF2_DIGEST(),
                     &mut key_data,
                 )
                 .expect("PBKDF2 key generation failed!");

@@ -2,6 +2,7 @@
 //! implementations of SecureStore in different languages.
 
 use crate::errors::{Error, ErrorKind};
+use openssl::hash::MessageDigest;
 use openssl::rand;
 use serde::{Deserialize, Deserializer, Serializer};
 use serde_derive::{Deserialize, Serialize};
@@ -14,8 +15,19 @@ use std::path::Path;
 pub(crate) const KEY_COUNT: usize = 2;
 /// The length of each individual key in bytes
 pub(crate) const KEY_LENGTH: usize = 128 / 8;
-/// The number of rounds used for PBKDF2 key derivation
-pub(crate) const PBKDF2_ROUNDS: usize = 10000usize;
+/// The number of rounds used for PBKDF2 key derivation.
+///
+/// Note that this does not *directly* feature into the security of the vault,
+/// as the resulting key is still considered to be a secret and is not stored
+/// (unlike a typical use case for PBKDF2/scrypt/argon2/etc as a password *hash*
+/// where the results of the derivation are stored in the database and used to
+/// compare against a user-supplied password).
+pub(crate) const PBKDF2_ROUNDS: usize = 10_000;
+/// The hash function used for PBKDF2, but only when password-based encryption/
+/// decryption is used. CSPRNG-derived symmetric keys are intentionally not
+/// stretched as their entropy would be constrained by the PBKDF2 digest, (at
+/// the cost of being vulnerable to a weekly seeded or compromised CSPRNG).
+pub(crate) const PBKDF2_DIGEST: fn() -> MessageDigest = MessageDigest::sha1;
 /// The size of an initialization vector in bytes
 pub(crate) const IV_SIZE: usize = KEY_LENGTH;
 /// The latest version of the vault schema
@@ -217,7 +229,6 @@ impl CryptoKeys {
     }
 }
 
-use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::sign::Signer;
 use openssl::symm::{self, Cipher};

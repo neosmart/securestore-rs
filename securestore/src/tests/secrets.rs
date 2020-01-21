@@ -81,7 +81,8 @@ fn password_export() {
 
     let key_path = NamedTempFile::new().unwrap();
     {
-        let mut sman = SecretsManager::new(&secrets_path, KeySource::Password("password123")).unwrap();
+        let mut sman =
+            SecretsManager::new(&secrets_path, KeySource::Password("password123")).unwrap();
         sman.export_keyfile(&key_path).unwrap();
 
         sman.set("foo", "bar");

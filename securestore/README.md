@@ -69,6 +69,30 @@ The SecureStore API also includes the relevant APIs for creating new stores; add
 and updating secrets; exporting keyfiles; and everything else typically done with the `ssclient` CLI
 companion (which is built on this crate for maximum dogfooding).
 
+## Encryption details
+
+SecureStore intentionally does not expose the cryptography innards as part of its API, the
+particulars of the cryptography algorithms used are considered hard-coded dependent on the schema
+version. The format itself is written to be forward-compatible such that if and when a need arises
+for a change in the underlying cryptography format, it can be done in a manner transparent to the
+API consumer.
+
+It is important that the choice of cryptographic primitives be made taking into account the
+availability of the chosen algorithms across different languages and platforms, as SecureStore is
+intended to be an open format with cross-compatible implementations available in different languages
+supporting many different environments. A conscious decision has been made to also reduce the need
+for third party dependencies where possible. For the current SecureStore schema (v2), an
+authenticated variant of AES-128-CBC is used, with two separately-derived/generated keys being used
+for the AES encryption and the HMAC-SHA1 authentication rounds. When used with user-supplied
+passwords, PBKDF2 with 10,000 rounds of SHA1 and a unique seed is used to derive the separate keys,
+but does not contribute in any way to the security of the vault as it is used purely for key
+stretching; the results of the key-stretching operation are *not* included in the store and are
+still considered to be sensitive data interchangeable with the password itself.
+
+At this time, OpenSSL is used for all cryptographic operations (including CSPRNG), but that may be
+replaced with platform-native dependencies in the future. For more details, please refer to the
+source code.
+
 ## License and authorship
 
 The SecureStore crate was originally developed by Mahmoud Al-Qudsi of NeoSmart Technologies and is
