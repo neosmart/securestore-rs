@@ -76,6 +76,23 @@ fn csprng_export() {
 }
 
 #[test]
+fn password_export() {
+    let secrets_path = NamedTempFile::new().unwrap();
+
+    let key_path = NamedTempFile::new().unwrap();
+    {
+        let mut sman = SecretsManager::new(&secrets_path, KeySource::Password("password123")).unwrap();
+        sman.export_keyfile(&key_path).unwrap();
+
+        sman.set("foo", "bar");
+        sman.save().unwrap();
+    }
+
+    let sman = SecretsManager::load(secrets_path, KeySource::File(key_path.as_ref())).unwrap();
+    assert_eq!(Ok("bar".to_owned()), sman.get("foo"));
+}
+
+#[test]
 fn invalid_key_file() {
     let secrets_path = NamedTempFile::new().unwrap();
     let key_path = NamedTempFile::new().unwrap();
