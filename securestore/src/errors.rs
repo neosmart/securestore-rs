@@ -1,5 +1,6 @@
 /// A strongly-typed enumeration of errors one can expect to encounter in using
 /// the SecureStore API.
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ErrorKind {
     /// The key did not meet the requirements for a valid keyfile.

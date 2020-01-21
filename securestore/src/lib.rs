@@ -12,7 +12,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 /// Used to specify where encryption/decryption keys should be loaded from
-#[derive(Debug, PartialEq)]
+#[non_exhaustive]
 pub enum KeySource<'a> {
     /// Load the keys from a binary file on-disk
     File(&'a Path),
@@ -56,11 +56,11 @@ impl SecretsManager {
     /// Creates a new instance of `SecretsManager` referencing an existing vault
     /// located on-disk.
     pub fn load<P: AsRef<Path>>(path: P, key_source: KeySource) -> Result<Self, Error> {
-        debug_assert_ne!(
-            KeySource::Csprng,
-            key_source,
-            "It is incorrect to call SecretsManager::load() except with an existing key source!"
-        );
+        match &key_source {
+            KeySource::Csprng => debug_assert!(false,
+            "It is incorrect to call SecretsManager::load() except with an existing key source!"),
+            _ => {}
+        };
 
         let path = path.as_ref();
 
