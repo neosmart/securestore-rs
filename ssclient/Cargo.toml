@@ -14,7 +14,7 @@ repository = "https://github.com/neosmart/securestore-rs/ssclient/"
 atty = "0.2"
 clap = { version = "2.33", default-features = false }
 getch = "0.2"
-securestore = { path = "../securestore", default-features = false }
+securestore = { path = "../securestore", version = "0.99", default-features = false }
 serde_json = "1.0"
 
 [features]
