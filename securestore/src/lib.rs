@@ -1,4 +1,3 @@
-#![feature(nll)]
 mod errors;
 mod serial;
 mod shared;
