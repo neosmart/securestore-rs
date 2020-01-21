@@ -58,10 +58,33 @@ fn main() {
                 )),
         )
         .arg(
+            Arg::with_name("export-key")
+                .long("export-key")
+                .value_name("EXPORT_PATH")
+                .number_of_values(1)
+                .global(true)
+                // We shouldn't use .requires("password") here because we default
+                // to password-based encryption if no other method is specified.
+                // .requires("password")
+                .conflicts_with("keyfile")
+                .help("Exports a key equivalent to the supplied password")
+                .long_help(concat!(
+                    "When used in combination with -p/--password, exports a ",
+                    "keyfile containing the encryption/decryption key(s) ",
+                    "derived from PASSWORD to the path specified by ",
+                    "EXPORT_PATH. \nThis allows for subsequent keyless, ",
+                    "non-interactive usage via the SecureStore API while ",
+                    "still retaining the convenience of password-based ",
+                    "encryption/decryption when using ssclient at the ",
+                    "command line."
+                )),
+        )
+        .arg(
             Arg::with_name("keyfile")
                 .global(true)
                 .short("k")
                 .long("keyfile")
+                .alias("key-file")
                 .value_name("KEYFILE")
                 .help("Use key stored at KEYFILE")
                 .takes_value(true),
@@ -147,7 +170,6 @@ fn main() {
 
     // We can't use `.is_present()` as the default value would coerce a true result
     let store = if mode_args.occurrences_of("STORE") > 0 {
-        eprintln!("is present reported!");
         Path::new(mode_args.value_of("create_store").unwrap())
     } else {
         // This has a default value of secrets.json so it's safe to unwrap
@@ -214,7 +236,8 @@ fn main() {
         KeySource::Password(args.value_of("password").unwrap())
     };
 
-    match run(mode, &store, keysource) {
+    let export_path = args.value_of("export-key");
+    match run(mode, &store, keysource, export_path) {
         Ok(_) => {}
         Err(msg) => {
             eprintln!("{}", msg);
@@ -223,17 +246,19 @@ fn main() {
     }
 }
 
-fn run(mode: Mode, store: &Path, keysource: KeySource) -> Result<(), Box<dyn std::error::Error>> {
+fn run(mode: Mode, store: &Path, keysource: KeySource, key_export_path: Option<&str>)
+    -> Result<(), Box<dyn std::error::Error>>
+{
     let (keysource, key_export_path) = match (&mode, &keysource) {
         (Mode::Create, KeySource::File(path)) => {
             if !path.exists() || std::fs::metadata(path).unwrap().len() == 0 {
-                (KeySource::Csprng, Some(path))
+                (KeySource::Csprng, Some(*path))
             } else {
                 eprintln!("Using existing keyfile {}", path.display());
                 (keysource, None)
             }
         }
-        _ => (keysource, None),
+        _ => (keysource, key_export_path.map(|path| Path::new(path))),
     };
 
     let mut sman = match &mode {
