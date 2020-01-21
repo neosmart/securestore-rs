@@ -69,21 +69,22 @@ fn main() {
                 .conflicts_with("keyfile")
                 .help("Exports a key equivalent to the supplied password")
                 .long_help(concat!(
-                    "When used in combination with -p/--password, exports a ",
-                    "keyfile containing the encryption/decryption key(s) ",
-                    "derived from PASSWORD to the path specified by ",
-                    "EXPORT_PATH. \nThis allows for subsequent keyless, ",
-                    "non-interactive usage via the SecureStore API while ",
-                    "still retaining the convenience of password-based ",
-                    "encryption/decryption when using ssclient at the ",
-                    "command line."
+                    "When used in combination with password-based encryption/",
+                    "decryption, exports a keyfile containing the encryption/",
+                    "decryption key(s) derived from PASSWORD to the path ",
+                    "specified by EXPORT_PATH. \n",
+                    "This allows for subsequent keyless, non-interactive ",
+                    "usage via the SecureStore API while still retaining the",
+                    "convenience of password-based encryption/decryption ",
+                    "when using ssclient at the command line."
                 )),
         )
         .arg(
             Arg::with_name("keyfile")
                 .global(true)
                 .short("k")
-                .long("keyfile")
+                .long("key")
+                .alias("keyfile")
                 .alias("key-file")
                 .value_name("KEYFILE")
                 .help("Use key stored at KEYFILE")
