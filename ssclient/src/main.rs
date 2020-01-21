@@ -150,6 +150,7 @@ fn main() {
         )
         .subcommand(
             SubCommand::with_name("delete")
+                .alias("remove")
                 .about("Remove a secret from the store")
                 .arg(
                     Arg::with_name("key")
