@@ -13,9 +13,9 @@ use std::path::{Path, PathBuf};
 
 /// Used to specify where encryption/decryption keys should be loaded from
 #[non_exhaustive]
-pub enum KeySource<'a> {
+pub enum KeySource<'a, P: AsRef<Path> = &'a Path> {
     /// Load the keys from a binary file on-disk
-    File(&'a Path),
+    File(P),
     /// Derive keys from the specified password
     Password(&'a str),
     /// Automatically generate new keys from a secure RNG.
@@ -40,7 +40,9 @@ impl SecretsManager {
 
     /// Creates a new vault on-disk at path `path` and loads it in a new
     /// instance of `SecretsManager`.
-    pub fn new<P: AsRef<Path>>(path: P, key_source: KeySource) -> Result<Self, Error> {
+    pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, key_source: KeySource<P2>)
+        -> Result<Self, Error>
+    {
         let path = path.as_ref();
 
         let mut vault = Vault::new();
@@ -55,7 +57,7 @@ impl SecretsManager {
 
     /// Creates a new instance of `SecretsManager` referencing an existing vault
     /// located on-disk.
-    pub fn load<P: AsRef<Path>>(path: P, key_source: KeySource) -> Result<Self, Error> {
+    pub fn load<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, key_source: KeySource<P2>) -> Result<Self, Error> {
         match &key_source {
             KeySource::Csprng => debug_assert!(false,
             "It is incorrect to call SecretsManager::load() except with an existing key source!"),
@@ -135,7 +137,7 @@ impl SecretsManager {
     }
 }
 
-impl<'a> KeySource<'a> {
+impl<'a, P: AsRef<Path>> KeySource<'a, P> {
     fn extract_keys(&self, iv: &[u8; shared::IV_SIZE]) -> Result<CryptoKeys, Error> {
         match &self {
             KeySource::Csprng => {
