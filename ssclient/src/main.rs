@@ -11,7 +11,7 @@ const STATUS_CONTROL_C_EXIT: i32 = 0xC000013Au32 as i32;
 #[derive(Debug, PartialEq)]
 enum Mode<'a> {
     Get(GetKey<'a>, OutputFormat),
-    Set(&'a str, &'a str),
+    Set(&'a str, Option<&'a str>),
     Create,
     Delete(&'a str),
 }
@@ -144,7 +144,7 @@ fn main() {
                     Arg::with_name("value")
                         .index(2)
                         .value_name("VALUE")
-                        .required(true)
+                        .required(false)
                         .help("The value of the secret identifyied by KEY"),
                 ),
         )
@@ -193,7 +193,7 @@ fn main() {
         }
         Some("set") => Mode::Set(
             mode_args.value_of("key").unwrap(),
-            mode_args.value_of("value").unwrap(),
+            mode_args.value_of("value"),
         ),
         Some("delete") => Mode::Delete(mode_args.value_of("key").unwrap()),
         Some("create") => Mode::Create,
@@ -317,7 +317,15 @@ fn run(
                 serde_json::to_string_pretty(&dump).expect("Failed to serialize secrets export!");
             println!("{}", json);
         }
-        Mode::Set(key, value) => sman.set(key, value),
+        Mode::Set(key, Some(value)) => sman.set(key, value),
+        Mode::Set(key, None) => {
+            let is_tty = atty::is(atty::Stream::Stdin);
+            if is_tty {
+                eprint!("Value: ");
+            }
+            let value = read();
+            sman.set(key, value)
+        }
         Mode::Delete(key) => sman.remove(key)?,
     }
 
