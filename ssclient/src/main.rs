@@ -247,9 +247,12 @@ fn main() {
     }
 }
 
-fn run(mode: Mode, store: &Path, keysource: KeySource, key_export_path: Option<&str>)
-    -> Result<(), Box<dyn std::error::Error>>
-{
+fn run(
+    mode: Mode,
+    store: &Path,
+    keysource: KeySource,
+    key_export_path: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let (keysource, key_export_path) = match (&mode, &keysource) {
         (Mode::Create, KeySource::File(path)) => {
             if !path.exists() || std::fs::metadata(path).unwrap().len() == 0 {
@@ -265,8 +268,7 @@ fn run(mode: Mode, store: &Path, keysource: KeySource, key_export_path: Option<&
     let mut sman = match &mode {
         Mode::Create => {
             if store.exists() && std::fs::metadata(store).unwrap().len() > 0 {
-                eprint!("Overwrite existing keystore {}? [y/n] ", store.display());
-                if !confirm() {
+                if !confirm(format!("Overwrite existing keystore {}", store.display())) {
                     eprintln!("New store creation aborted.");
                     std::process::exit(EEXIST);
                 }
@@ -277,6 +279,12 @@ fn run(mode: Mode, store: &Path, keysource: KeySource, key_export_path: Option<&
     };
 
     if let Some(path) = key_export_path {
+        if path.exists() && path.metadata().unwrap().len() > 0 {
+            if !confirm(format!("Overwrite existing keyfile at {}", path.display())) {
+                eprintln!("Keyfile export aborted.");
+                std::process::exit(EEXIST);
+            }
+        }
         eprintln!("Saving newly generated key to {}", path.display());
         sman.export_keyfile(path)?;
     }
@@ -316,16 +324,24 @@ fn run(mode: Mode, store: &Path, keysource: KeySource, key_export_path: Option<&
     Ok(())
 }
 
-fn confirm() -> bool {
+fn confirm<S: AsRef<str>>(prompt: S) -> bool {
     let is_tty = atty::is(atty::Stream::Stdin);
     if !is_tty {
         return true;
     }
 
     // stdin.read_line(..) doesn't give us a way to detect Ctrl+C on Windows
-    let input = read();
-    let line = input.trim().to_lowercase();
-    line == "y" || line == "yes"
+    let prompt = prompt.as_ref();
+    loop {
+        eprint!("{}? [y/n] ", prompt.trim_matches('?'));
+        let input = read();
+        let line = input.trim().to_lowercase();
+        if line == "y" || line == "yes" {
+            return true;
+        } else if line == "n" || line == "no" {
+            return false;
+        }
+    }
 }
 
 fn read_masked(mask_input: bool) -> String {
