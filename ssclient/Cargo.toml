@@ -1,8 +1,14 @@
 [package]
 name = "ssclient"
-version = "0.1.0"
-authors = ["Mahmoud Al-Qudsi <mqudsi@neosmart.net>"]
+version = "0.99.0"
+authors = ["Mahmoud Al-Qudsi <mqudsi@neosmart.net>", "NeoSmart Technologies"]
 edition = "2018"
+description = "SecureStore client for managing user secrets"
+keywords = [ "encryption", "security", "secrets", "cryptography" ]
+categories = [ "cryptography", "web-programming", "development-tools", "command-line-utilities", "config" ]
+license = "Apache-2.0 OR MIT"
+homepage = "http://neosmart.net/blog/2020/securestore-open-secrets-format/"
+repository = "https://github.com/neosmart/securestore-rs/ssclient/"
 
 [dependencies]
 atty = "0.2"
