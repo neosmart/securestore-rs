@@ -1,8 +1,14 @@
 [package]
 name = "securestore"
-version = "0.1.0"
-authors = ["Mahmoud Al-Qudsi <mqudsi@neosmart.net>"]
+version = "0.99.0"
+authors = ["Mahmoud Al-Qudsi <mqudsi@neosmart.net>", "NeoSmart Technologies"]
 edition = "2018"
+description = "SecureStore API for creating or decrypting user secrets"
+keywords = [ "encryption", "security", "secrets", "cryptography" ]
+categories = [ "cryptography", "web-programming", "config" ]
+license = "Apache-2.0 OR MIT"
+homepage = "http://neosmart.net/blog/2020/securestore-open-secrets-format/"
+repository = "https://github.com/neosmart/securestore-rs/securestore/"
 
 [dependencies]
 base64 = "0.10"
