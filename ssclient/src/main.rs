@@ -230,6 +230,11 @@ fn main() {
                 if password != password2 {
                     continue;
                 }
+
+                if password.len() < 8 {
+                    eprintln!("Password does not meet minimum length requirements!");
+                    continue;
+                }
             }
             keysource = KeySource::Password(&password);
             break;
