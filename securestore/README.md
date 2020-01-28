@@ -81,13 +81,12 @@ It is important that the choice of cryptographic primitives be made taking into 
 availability of the chosen algorithms across different languages and platforms, as SecureStore is
 intended to be an open format with cross-compatible implementations available in different languages
 supporting many different environments. A conscious decision has been made to also reduce the need
-for third party dependencies where possible. For the current SecureStore schema (v2), an
-authenticated variant of AES-128-CBC is used, with two separately-derived/generated keys being used
-for the AES encryption and the HMAC-SHA1 authentication rounds. When used with user-supplied
-passwords, PBKDF2 with 10,000 rounds of SHA1 and a unique seed is used to derive the separate keys,
-but does not contribute in any way to the security of the vault as it is used purely for key
-stretching; the results of the key-stretching operation are *not* included in the store and are
-still considered to be sensitive data interchangeable with the password itself.
+for third party dependencies where possible. For the current SecureStore schema (v3), an
+authenticated variant of AES-128-CBC is used, with two separately-derived/generated keys being
+used for the AES encryption and the HMAC-SHA1 authentication rounds. When used with user-supplied
+passwords, PBKDF2 with 256,000 rounds of SHA1 and a unique seed is used to derive the separate
+keys; the results of the key-stretching operation are *not* included in the store and are still
+considered to be sensitive data interchangeable with the password itself.
 
 At this time, OpenSSL is used for all cryptographic operations (including CSPRNG), but that may be
 replaced with platform-native dependencies in the future. For more details, please refer to the
