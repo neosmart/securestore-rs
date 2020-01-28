@@ -32,10 +32,14 @@ fn main() {
     let is_tty = atty::is(atty::Stream::Stdin);
     let args = App::new("SecureStore")
         .version(env!("CARGO_PKG_VERSION"))
-        .author(concat!("Copyright NeoSmart Technologies 2018-2020.\n",
-                "Developed by Mahmoud Al-Qudsi and SecureStore contributors"))
-        .about(concat!("Create and manage encrypted secrets stores.\n",
-                "Learn more at https://neosmart.net/SecureStore/"))
+        .author(concat!(
+            "Copyright NeoSmart Technologies 2018-2020.\n",
+            "Developed by Mahmoud Al-Qudsi and SecureStore contributors"
+        ))
+        .about(concat!(
+            "Create and manage encrypted secrets stores.\n",
+            "Learn more at https://neosmart.net/SecureStore/"
+        ))
         .arg(
             Arg::with_name("store")
                 .global(true)

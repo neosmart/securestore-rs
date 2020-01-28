@@ -64,7 +64,7 @@ impl SecretsManager {
     ) -> Result<Self, Error> {
         match &key_source {
             KeySource::Csprng => debug_assert!(false,
-            "It is incorrect to call SecretsManager::load() except with an existing key source!"),
+                "It is incorrect to call SecretsManager::load() except with an existing key source!"),
             _ => {}
         };
 
