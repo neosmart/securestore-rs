@@ -4,8 +4,7 @@
 use crate::errors::{Error, ErrorKind};
 use openssl::hash::MessageDigest;
 use openssl::rand;
-use serde::{Deserialize, Deserializer, Serializer};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Write};
