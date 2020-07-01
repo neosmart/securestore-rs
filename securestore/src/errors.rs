@@ -25,6 +25,8 @@ pub enum ErrorKind {
     InvalidStore,
 }
 
+pub(crate) type StdError = dyn std::error::Error + Send + Sync + 'static;
+
 /// The high-level wrapper type for user-facing errors in the SecureStore API.
 ///
 /// Individual errors are categorized as [`ErrorKind`], which implements
@@ -33,7 +35,7 @@ pub enum ErrorKind {
 /// too-strict subset of real-world values.
 #[derive(Debug)]
 pub struct Error {
-    inner: Option<Box<dyn std::error::Error + 'static>>,
+    inner: Option<Box<StdError>>,
     kind: ErrorKind,
 }
 
@@ -42,11 +44,11 @@ impl Error {
         self.kind
     }
 
-    pub fn inner(&self) -> Option<&dyn std::error::Error> {
+    pub fn inner(&self) -> Option<&StdError> {
         self.inner.as_ref().map(|e| &**e)
     }
 
-    pub(crate) fn from_inner(kind: ErrorKind, inner: Box<dyn std::error::Error + 'static>) -> Self {
+    pub(crate) fn from_inner(kind: ErrorKind, inner: Box<StdError>) -> Self {
         Error {
             kind,
             inner: Some(inner),

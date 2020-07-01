@@ -3,6 +3,8 @@
 //! implemented as a global impl for all `TryFrom<u8>`/`TryInto<u8>` as the
 //! binary conversion must be stable to survive cold storage.
 
+use crate::errors::StdError;
+
 /// A trait enabling saving a secret of the implementing type to the secrets
 /// store.
 pub trait BinarySerializable {
@@ -15,7 +17,7 @@ pub trait BinaryDeserializable
 where
     Self: Sized,
 {
-    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<dyn std::error::Error + 'static>>;
+    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<StdError>>;
 }
 
 impl BinarySerializable for String {
@@ -25,7 +27,7 @@ impl BinarySerializable for String {
 }
 
 impl BinaryDeserializable for String {
-    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<dyn std::error::Error + 'static>> {
+    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<StdError>> {
         let s = String::from_utf8(bytes)?;
         Ok(s)
     }
@@ -44,7 +46,7 @@ impl BinarySerializable for &[u8] {
 }
 
 impl BinaryDeserializable for Vec<u8> {
-    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<dyn std::error::Error + 'static>> {
+    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<StdError>> {
         Ok(bytes)
     }
 }
