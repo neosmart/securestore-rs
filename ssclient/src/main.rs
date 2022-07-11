@@ -1,4 +1,4 @@
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, SubCommand, ValueSource};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
 use std::io::Write;
@@ -30,7 +30,7 @@ enum OutputFormat {
 
 fn main() {
     let is_tty = atty::is(atty::Stream::Stdin);
-    let args = App::new("SecureStore")
+    let mut args = App::new("SecureStore")
         .version(env!("CARGO_PKG_VERSION"))
         .author(concat!(
             "Copyright NeoSmart Technologies 2018-2020.\n",
@@ -43,7 +43,7 @@ fn main() {
         .arg(
             Arg::with_name("store")
                 .global(true)
-                .short("s")
+                .short('s')
                 .long("store")
                 .value_name("STORE")
                 .help("Specify the path to the secrets store to use")
@@ -53,7 +53,7 @@ fn main() {
         .arg(
             Arg::with_name("password")
                 .global(true)
-                .short("p")
+                .short('p')
                 .long("password")
                 .value_name("PASSWORD")
                 .takes_value(!is_tty)
@@ -88,7 +88,7 @@ fn main() {
         .arg(
             Arg::with_name("keyfile")
                 .global(true)
-                .short("k")
+                .short('k')
                 .long("key")
                 .alias("keyfile")
                 .alias("key-file")
@@ -112,7 +112,7 @@ fn main() {
                 .about("Decrypt one or more secrets")
                 .arg(
                     Arg::with_name("all")
-                        .short("a")
+                        .short('a')
                         .long("all")
                         .help("Decrypt all secrets (e.g. for export)"),
                 )
@@ -163,28 +163,30 @@ fn main() {
                         .required(true)
                         .help("The unique name of the secret to be deleted"),
                 ),
-        )
-        .get_matches();
+        );
 
-    let subcommand = match args.subcommand_name() {
+    let usage = args.render_usage();
+    let matches = args.get_matches();
+    let subcommand = match matches.subcommand_name() {
         Some(name) => name,
         None => {
-            eprintln!("{}", args.usage());
+            eprintln!("{}", usage);
             return;
         }
     };
 
-    let mode_args = args.subcommand_matches(subcommand).unwrap();
+    let mode_args = matches.subcommand_matches(subcommand).unwrap();
 
-    // We can't use `.is_present()` as the default value would coerce a true result
-    let store = if mode_args.occurrences_of("STORE") > 0 {
+    // We can't use `.is_present()` as the default value would coerce a true result.
+    // It is safe to call unwrap because a default value is always present.
+    let store = if mode_args.value_source("create_store").unwrap() == ValueSource::CommandLine {
         Path::new(mode_args.value_of("create_store").unwrap())
     } else {
         // This has a default value of secrets.json so it's safe to unwrap
-        Path::new(args.value_of("store").unwrap())
+        Path::new(matches.value_of("store").unwrap())
     };
 
-    let mode = match args.subcommand_name() {
+    let mode = match matches.subcommand_name() {
         Some("get") => {
             let key = match mode_args.value_of("key") {
                 Some(key) => GetKey::Single(key),
@@ -203,7 +205,7 @@ fn main() {
         Some("delete") => Mode::Delete(mode_args.value_of("key").unwrap()),
         Some("create") => Mode::Create,
         _ => {
-            eprintln!("{}", args.usage());
+            eprintln!("{}", usage);
             std::process::exit(1);
         }
     };
@@ -215,8 +217,8 @@ fn main() {
     }
 
     let mut password;
-    let keysource = if args.is_present("keyfile") {
-        let keyfile = Path::new(args.value_of("keyfile").unwrap());
+    let keysource = if matches.is_present("keyfile") {
+        let keyfile = Path::new(matches.value_of("keyfile").unwrap());
         KeySource::File(keyfile)
     } else if is_tty {
         let keysource;
@@ -241,15 +243,15 @@ fn main() {
         }
         keysource
     } else {
-        if !args.is_present("password") {
+        if !matches.is_present("password") {
             eprintln!("Either a password or keyfile is required!");
-            eprintln!("{}", args.usage());
+            eprintln!("{}", usage);
             std::process::exit(1);
         }
-        KeySource::Password(args.value_of("password").unwrap())
+        KeySource::Password(matches.value_of("password").unwrap())
     };
 
-    let export_path = args.value_of("export-key");
+    let export_path = matches.value_of("export-key");
     match run(mode, &store, keysource, export_path) {
         Ok(_) => {}
         Err(msg) => {
