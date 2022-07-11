@@ -11,16 +11,16 @@ homepage = "http://neosmart.net/blog/2020/securestore-open-secrets-format/"
 repository = "https://github.com/neosmart/securestore-rs/tree/master/securestore"
 
 [dependencies]
-base64 = "0.10"
-serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0"
+base64 = "0.13.0"
+serde = { version = "1.0.139", features = [ "derive" ] }
+serde_json = "1.0.82"
 
 [target.'cfg(not(windows))'.dependencies.openssl]
-version = "0.10"
+version = "0.10.41"
 features = [ ]
 
 [target.'cfg(windows)'.dependencies.openssl]
-version = "0.10"
+version = "0.10.41"
 features = [ "vendored" ]
 
 [features]
@@ -28,4 +28,4 @@ features = [ "vendored" ]
 openssl-vendored = [ "openssl/vendored" ]
 
 [dev-dependencies]
-tempfile = "3.1"
+tempfile = "3.3.0"
