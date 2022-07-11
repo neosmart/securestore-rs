@@ -177,6 +177,17 @@ fn main() {
 
     let mode_args = matches.subcommand_matches(subcommand).unwrap();
 
+    // In the specific case of `ssclient create`, a store path can be provided via a positional
+    // argument (e.g. `ssclient create path.json`) or via the global `-s`/`--store` option (e.g.
+    // `ssclient create -s path.json`). The positional argument takes priority.
+    if mode_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
+        && mode_args.value_source("store").unwrap() != ValueSource::DefaultValue
+        && mode_args.value_of("create_store") != mode_args.value_of("store")
+    {
+        eprintln!("Conflicting store paths provided!");
+        std::process::exit(1);
+    }
+
     // We can't use `.is_present()` as the default value would coerce a true result.
     // It is safe to call unwrap because a default value is always present.
     let store = if mode_args.value_source("create_store").unwrap() == ValueSource::CommandLine {
