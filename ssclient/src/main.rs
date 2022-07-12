@@ -8,6 +8,10 @@ const ENOENT: i32 = 2;
 const EEXIST: i32 = 17;
 const STATUS_CONTROL_C_EXIT: i32 = 0xC000013Au32 as i32;
 
+/// Determines how many parent paths to check when determining whether the key
+/// file is under VCS control or not.
+const VCS_TEST_MAX_DEPTH: i32 = 48;
+
 #[derive(Debug, PartialEq)]
 enum Mode<'a> {
     Get(GetKey<'a>, OutputFormat),
@@ -26,6 +30,13 @@ enum GetKey<'a> {
 enum OutputFormat {
     Text,
     Json,
+}
+
+#[derive(Debug, PartialEq)]
+enum VcsType {
+    /// None can mean literally none or "none that we support"
+    None,
+    Git,
 }
 
 fn main() {
@@ -374,13 +385,13 @@ fn run(
         };
 
         if let Some(vcs_exclude_path) = vcs_exclude_path {
-            let parent_dir = vcs_exclude_path.parent().unwrap();
-            let ignore_file = parent_dir.join(".gitignore");
+            if repo_type(vcs_exclude_path, VCS_TEST_MAX_DEPTH) != VcsType::None {
+                let parent_dir = vcs_exclude_path.parent().unwrap();
+                let ignore_file = parent_dir.join(".gitignore");
 
-            add_path_to_ignore_file(&ignore_file, &vcs_exclude_path)?;
+                add_path_to_ignore_file(&ignore_file, &vcs_exclude_path)?;
+            }
         }
-    } else {
-        eprintln!("Not adding to ignore file");
     }
 
     Ok(())
@@ -461,6 +472,26 @@ fn secure_read() -> String {
     read_masked(true)
 }
 
+/// Determines whether a path is under VCS control, and if so, what that VCS is.
+/// Parent traversal is capped to `max_depth` ancestors.
+fn repo_type(path: &Path, max_depth: i32) -> VcsType {
+    let abs_path = path.canonicalize().unwrap();
+    let mut path = abs_path.as_path();
+    for _ in 0..max_depth {
+        path = match path.parent() {
+            Some(parent) => parent,
+            None => break,
+        };
+
+        let vcs_path = path.join(".git");
+        if vcs_path.exists() {
+            return VcsType::Git;
+        }
+    }
+
+    VcsType::None
+}
+
 fn add_path_to_ignore_file(
     ignore_file: &Path,
     path: &Path,
@@ -492,8 +523,8 @@ fn add_path_to_ignore_file(
         None => return Ok(false),
     };
 
-    // Contains either the string "new" or "existing" depending on whether we
-    // created the VCS ignore file ourselves or not.
+    // Contains either the string "newly-created" or "existing" depending on whether
+    // we created the VCS ignore file ourselves or not.
     let ignore_file_status;
     // Create an empty file if it doesn't already exist, so we can always start
     // from the same place.
@@ -506,7 +537,7 @@ fn add_path_to_ignore_file(
                 err
             )
         })?;
-        ignore_file_status = "new";
+        ignore_file_status = "newly-created";
     } else {
         ignore_file_status = "existing";
     }
