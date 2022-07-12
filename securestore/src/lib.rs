@@ -66,11 +66,9 @@ impl SecretsManager {
         path: P1,
         key_source: KeySource<P2>,
     ) -> Result<Self, Error> {
-        match &key_source {
-            KeySource::Csprng => debug_assert!(false,
-                "It is incorrect to call SecretsManager::load() except with an existing key source!"),
-            _ => {}
-        };
+        if matches!(key_source, KeySource::Csprng) {
+            debug_assert!(false, "It is incorrect to call SecretsManager::load() except with an existing key source!");
+        }
 
         let path = path.as_ref();
 
@@ -125,7 +123,7 @@ impl SecretsManager {
 
     /// Adds a new secret or replaces an existing secret identified by `name` to
     /// the store.
-    pub fn set<T: BinarySerializable>(&mut self, name: &str, value: T) -> () {
+    pub fn set<T: BinarySerializable>(&mut self, name: &str, value: T) {
         let encrypted = EncryptedBlob::encrypt(&self.cryptokeys, T::serialize(&value));
         self.vault.secrets.insert(name.to_string(), encrypted);
     }

@@ -139,7 +139,7 @@ impl Vault {
 
         Vault {
             version: SCHEMA_VERSION,
-            iv: iv,
+            iv,
             secrets: Default::default(),
             sentinel: None,
         }

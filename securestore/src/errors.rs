@@ -68,15 +68,15 @@ impl std::convert::From<ErrorKind> for Error {
     }
 }
 
-impl<R> std::convert::Into<Result<R, Error>> for Error {
-    fn into(self) -> Result<R, Error> {
-        Err(self)
+impl<R> std::convert::From<Error> for Result<R, Error> {
+    fn from(error: Error) -> Self {
+        Err(error)
     }
 }
 
-impl<R> std::convert::Into<Result<R, Error>> for ErrorKind {
-    fn into(self) -> Result<R, Error> {
-        Err(self.into())
+impl<R> std::convert::From<ErrorKind> for Result<R, Error> {
+    fn from(kind: ErrorKind) -> Self {
+        Err(kind.into())
     }
 }
 
