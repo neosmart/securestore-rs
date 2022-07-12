@@ -13,14 +13,18 @@ use std::path::{Path, PathBuf};
 
 /// Used to specify where encryption/decryption keys should be loaded from
 #[non_exhaustive]
+#[derive(Clone)]
 pub enum KeySource<'a, P: AsRef<Path> = &'a Path> {
     /// Load the keys from a binary file on-disk
     File(P),
     /// Derive keys from the specified password
     Password(&'a str),
-    /// Automatically generate new keys from a secure RNG.
+    /// Automatically generate a new key file from a secure RNG.
+    ///
     /// [`SecretsManager::export_keyfile()`] should be used to export the
-    /// keys before the instance is disposed.
+    /// keys before the instance is disposed. The store can then subsequently be
+    /// loaded with a [`KeySource::File`] pointing to the file exported by
+    /// [`SecretsManager::export_keyfile()`].
     Csprng,
 }
 
