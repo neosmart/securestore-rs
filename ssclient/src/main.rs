@@ -83,7 +83,7 @@ fn main() {
                 // We shouldn't use .requires("password") here because we default
                 // to password-based encryption if no other method is specified.
                 // .requires("password")
-                .conflicts_with("keyfile")
+                // .conflicts_with("keyfile")
                 .help("Exports a key equivalent to the supplied password")
                 .long_help(concat!(
                     "When used in combination with password-based encryption/",
@@ -107,6 +107,12 @@ fn main() {
                 .help("Use key stored at KEYFILE")
                 .takes_value(true),
         )
+        .arg(
+            Arg::new("no_vcs")
+                .long("no-vcs")
+                .takes_value(false)
+                .help("Do not exclude private key in vcs ignore file"),
+        )
         .subcommand(
             SubCommand::with_name("create")
                 .about("Create a new store")
@@ -116,12 +122,6 @@ fn main() {
                         .value_name("STORE")
                         .default_value("secrets.json")
                         .help("The path to the secrets store to create"),
-                )
-                .arg(
-                    Arg::new("no_vcs")
-                        .long("no-vcs")
-                        .takes_value(false)
-                        .help("Do not exclude private key in vcs ignore file"),
                 ),
         )
         .subcommand(
@@ -194,27 +194,6 @@ fn main() {
 
     let mode_args = matches.subcommand_matches(subcommand).unwrap();
 
-    // In the specific case of `ssclient create`, a store path can be provided via a
-    // positional argument (e.g. `ssclient create path.json`) or via the global
-    // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
-    // positional argument takes priority.
-    if mode_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
-        && mode_args.value_source("store").unwrap() != ValueSource::DefaultValue
-        && mode_args.value_of("create_store") != mode_args.value_of("store")
-    {
-        eprintln!("Conflicting store paths provided!");
-        std::process::exit(1);
-    }
-
-    // We can't use `.is_present()` as the default value would coerce a true result.
-    // It is safe to call unwrap because a default value is always present.
-    let store = if mode_args.value_source("create_store").unwrap() == ValueSource::CommandLine {
-        Path::new(mode_args.value_of("create_store").unwrap())
-    } else {
-        // This has a default value of secrets.json so it's safe to unwrap
-        Path::new(matches.value_of("store").unwrap())
-    };
-
     let mode = match matches.subcommand_name() {
         Some("get") => {
             let key = match mode_args.value_of("key") {
@@ -237,6 +216,30 @@ fn main() {
             eprintln!("{}", usage);
             std::process::exit(1);
         }
+    };
+
+    // In the specific case of `ssclient create`, a store path can be provided via a
+    // positional argument (e.g. `ssclient create path.json`) or via the global
+    // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
+    // positional argument takes priority.
+    if mode == Mode::Create
+        && matches.value_source("create_store").unwrap() != ValueSource::DefaultValue
+        && mode_args.value_source("store").unwrap() != ValueSource::DefaultValue
+        && mode_args.value_of("create_store") != mode_args.value_of("store")
+    {
+        eprintln!("Conflicting store paths provided!");
+        std::process::exit(1);
+    }
+
+    // We can't use `.is_present()` as the default value would coerce a true result.
+    // It is safe to call unwrap because a default value is always present.
+    let store = if mode == Mode::Create
+        && mode_args.value_source("create_store").unwrap() == ValueSource::CommandLine
+    {
+        Path::new(mode_args.value_of("create_store").unwrap())
+    } else {
+        // This has a default value of secrets.json so it's safe to unwrap
+        Path::new(matches.value_of("store").unwrap())
     };
 
     if mode != Mode::Create && !store.exists() {
@@ -281,7 +284,7 @@ fn main() {
     };
 
     let export_path = matches.value_of("export_key");
-    let exclude_vcs = !mode_args.contains_id("no_vcs");
+    let exclude_vcs = !matches.contains_id("no_vcs");
     match run(mode, &store, keysource, export_path, exclude_vcs) {
         Ok(_) => {}
         Err(msg) => {
