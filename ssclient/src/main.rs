@@ -105,6 +105,12 @@ fn main() {
                         .value_name("STORE")
                         .default_value("secrets.json")
                         .help("The path to the secrets store to create"),
+                )
+                .arg(
+                    Arg::new("no_vcs")
+                        .long("no-vcs")
+                        .takes_value(false)
+                        .help("Do not exclude private key in vcs ignore file"),
                 ),
         )
         .subcommand(
@@ -177,9 +183,10 @@ fn main() {
 
     let mode_args = matches.subcommand_matches(subcommand).unwrap();
 
-    // In the specific case of `ssclient create`, a store path can be provided via a positional
-    // argument (e.g. `ssclient create path.json`) or via the global `-s`/`--store` option (e.g.
-    // `ssclient create -s path.json`). The positional argument takes priority.
+    // In the specific case of `ssclient create`, a store path can be provided via a
+    // positional argument (e.g. `ssclient create path.json`) or via the global
+    // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
+    // positional argument takes priority.
     if mode_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
         && mode_args.value_source("store").unwrap() != ValueSource::DefaultValue
         && mode_args.value_of("create_store") != mode_args.value_of("store")
@@ -263,7 +270,8 @@ fn main() {
     };
 
     let export_path = matches.value_of("export_key");
-    match run(mode, &store, keysource, export_path) {
+    let exclude_vcs = !mode_args.contains_id("no_vcs");
+    match run(mode, &store, keysource, export_path, exclude_vcs) {
         Ok(_) => {}
         Err(msg) => {
             eprintln!("{}", msg);
@@ -277,7 +285,8 @@ fn run(
     store: &Path,
     keysource: KeySource,
     key_export_path: Option<&str>,
-) -> Result<(), Box<dyn std::error::Error>> {
+    exclude_vcs: bool,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (keysource, key_export_path) = match (&mode, &keysource) {
         (Mode::Create, KeySource::File(path)) => {
             if !path.exists() || std::fs::metadata(path).unwrap().len() == 0 {
@@ -298,9 +307,9 @@ fn run(
                     std::process::exit(EEXIST);
                 }
             }
-            SecretsManager::new(store, keysource)?
+            SecretsManager::new(store, keysource.clone())?
         }
-        _ => SecretsManager::load(store, keysource)?,
+        _ => SecretsManager::load(store, keysource.clone())?,
     };
 
     if let Some(path) = key_export_path {
@@ -353,6 +362,26 @@ fn run(
     }
 
     sman.save()?;
+
+    if exclude_vcs {
+        let vcs_exclude_path = match (mode, keysource, key_export_path) {
+            // Exclude the already present/created key file
+            (Mode::Create, KeySource::File(path), _) => Some(path),
+            // Exclude the key file we just exported
+            (_, _, Some(path)) => Some(path),
+            // No key file to exclude
+            _ => None,
+        };
+
+        if let Some(vcs_exclude_path) = vcs_exclude_path {
+            let parent_dir = vcs_exclude_path.parent().unwrap();
+            let ignore_file = parent_dir.join(".gitignore");
+
+            add_path_to_ignore_file(&ignore_file, &vcs_exclude_path)?;
+        }
+    } else {
+        eprintln!("Not adding to ignore file");
+    }
 
     Ok(())
 }
@@ -430,4 +459,119 @@ fn read() -> String {
 
 fn secure_read() -> String {
     read_masked(true)
+}
+
+fn add_path_to_ignore_file(
+    ignore_file: &Path,
+    path: &Path,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    use std::fs::File;
+    use std::io::prelude::*;
+    use std::io::{BufRead, BufReader};
+
+    // Currently, only ignore files that are in the same dir as the path to be
+    // ignored are supported; this drastically simplifies both checking whether
+    // a path is already ignored and determining how to express the path
+    // relative to the ignore file.
+    if ignore_file.parent() != path.parent() {
+        panic!("Ignore file must be in the same directory as the file to be excluded from vcs!");
+    }
+    if ignore_file.exists() && !ignore_file.is_file() {
+        panic!(
+            "An ignore file already exists at {} but is not a regular file!",
+            ignore_file.display()
+        );
+    }
+
+    // We treat the contents of the ignore file as UTF-8, so we can't handle
+    // non-UTF-8 paths to be excluded.
+    let path_file_name = match path.file_name().unwrap().to_str() {
+        Some(str) => str,
+        // This isn't an error because the user is perfectly allowed to use a non-Unicode path for
+        // the key file. This use case is just presently not implemented.
+        None => return Ok(false),
+    };
+
+    // Contains either the string "new" or "existing" depending on whether we
+    // created the VCS ignore file ourselves or not.
+    let ignore_file_status;
+    // Create an empty file if it doesn't already exist, so we can always start
+    // from the same place.
+    if !ignore_file.exists() {
+        // eprintln!("Creating new ignore file at {}", ignore_file.display());
+        File::create(&ignore_file).map_err(|err| {
+            format!(
+                "Error creating VCS ignore file at {}: {}",
+                ignore_file.display(),
+                err
+            )
+        })?;
+        ignore_file_status = "new";
+    } else {
+        ignore_file_status = "existing";
+    }
+
+    let mut matched_paths = vec![path_file_name];
+    // Allow a wildcard ignore like *.key to match
+    let wildcard_exclude;
+    if let Some(ext) = path.extension() {
+        // It's safe to unwrap because we've verified above that all of path.filename()
+        // is a valid UTF-8 string.
+        let ext = ext.to_str().unwrap();
+        wildcard_exclude = format!("*.{ext}");
+        matched_paths.push(wildcard_exclude.as_str());
+    }
+
+    let reader = BufReader::new(File::open(ignore_file)?);
+    for line in reader.lines() {
+        let line = match line {
+            Err(err) if err.kind() == std::io::ErrorKind::InvalidData => {
+                // No I/O errors, but the line contained invalid UTF-8 contents
+                continue;
+            }
+            result => result,
+        }?;
+
+        // An ignore rule for foo and ./foo should both match since we are excluding a
+        // path in the same directory as the ignore file itself.
+        let cleaned_rule = line.strip_prefix("./").unwrap_or(&line);
+
+        // Check if the processed line/rule already excludes the path we want to exclude
+        if matched_paths.contains(&cleaned_rule) {
+            // eprintln!("The key file {} is already excluded in ignore file {} by rule {}",
+            //     path.display(), ignore_file.display(), &line);
+            return Ok(true);
+        }
+    }
+
+    // We only get here if the ignore file didn't contain the path we want to
+    // exclude.
+
+    // While we support both pathed (./foo) and unpathed (foo) pre-existing rules,
+    // we prefer to always write out pathed rules only.
+    let rule = format!("./{path_file_name}\n");
+    let mut writer = std::fs::OpenOptions::new()
+        .append(true)
+        .open(ignore_file)
+        .map_err(|err| {
+            format!(
+                "Error opening ignore file at {} for writing: {}",
+                ignore_file.display(),
+                err
+            )
+        })?;
+    writer.write_all(rule.as_bytes()).map_err(|err| {
+        format!(
+            "Error writing to vcs ignore file at {}: {}",
+            ignore_file.display(),
+            err
+        )
+    })?;
+
+    eprintln!(
+        "Excluding key file in {ignore_file_status} VCS ignore file {}",
+        ignore_file.display()
+    );
+
+    Ok(true)
 }
