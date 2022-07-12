@@ -407,15 +407,15 @@ fn read_masked(mask_input: bool) -> String {
             BKSPC | BKSPC_TERMIOS => {
                 if input.len() > 0 {
                     input.truncate(input.len() - 1);
-                    stderr.write(&[BKSPC, b' ', BKSPC]).unwrap();
+                    stderr.write_all(&[BKSPC, b' ', BKSPC]).unwrap();
                 }
             }
             c => {
                 input.push(c as char);
                 if mask_input {
-                    stderr.write(&[b'*']).unwrap();
+                    stderr.write_all(&[b'*']).unwrap();
                 } else {
-                    stderr.write(&[c]).unwrap();
+                    stderr.write_all(&[c]).unwrap();
                 }
             }
         }
