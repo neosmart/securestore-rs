@@ -64,7 +64,7 @@ fn main() {
                 )),
         )
         .arg(
-            Arg::with_name("export-key")
+            Arg::with_name("export_key")
                 .long("export-key")
                 .value_name("EXPORT_PATH")
                 .number_of_values(1)
@@ -262,7 +262,7 @@ fn main() {
         KeySource::Password(matches.value_of("password").unwrap())
     };
 
-    let export_path = matches.value_of("export-key");
+    let export_path = matches.value_of("export_key");
     match run(mode, &store, keysource, export_path) {
         Ok(_) => {}
         Err(msg) => {
