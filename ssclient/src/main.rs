@@ -183,8 +183,8 @@ fn main() {
         );
 
     let usage = args.render_usage();
-    let matches = args.get_matches();
-    let subcommand = match matches.subcommand_name() {
+    let app_args = args.get_matches();
+    let subcommand = match app_args.subcommand_name() {
         Some(name) => name,
         None => {
             eprintln!("{}", usage);
@@ -192,9 +192,9 @@ fn main() {
         }
     };
 
-    let mode_args = matches.subcommand_matches(subcommand).unwrap();
+    let mode_args = app_args.subcommand_matches(subcommand).unwrap();
 
-    let mode = match matches.subcommand_name() {
+    let mode = match app_args.subcommand_name() {
         Some("get") => {
             let key = match mode_args.value_of("key") {
                 Some(key) => GetKey::Single(key),
@@ -223,7 +223,7 @@ fn main() {
     // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
     // positional argument takes priority.
     if mode == Mode::Create
-        && matches.value_source("create_store").unwrap() != ValueSource::DefaultValue
+        && app_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
         && mode_args.value_source("store").unwrap() != ValueSource::DefaultValue
         && mode_args.value_of("create_store") != mode_args.value_of("store")
     {
@@ -239,7 +239,7 @@ fn main() {
         Path::new(mode_args.value_of("create_store").unwrap())
     } else {
         // This has a default value of secrets.json so it's safe to unwrap
-        Path::new(matches.value_of("store").unwrap())
+        Path::new(app_args.value_of("store").unwrap())
     };
 
     if mode != Mode::Create && !store.exists() {
@@ -249,8 +249,8 @@ fn main() {
     }
 
     let mut password;
-    let keysource = if matches.is_present("keyfile") {
-        let keyfile = Path::new(matches.value_of("keyfile").unwrap());
+    let keysource = if app_args.is_present("keyfile") {
+        let keyfile = Path::new(app_args.value_of("keyfile").unwrap());
         KeySource::File(keyfile)
     } else if is_tty {
         let keysource;
@@ -275,16 +275,16 @@ fn main() {
         }
         keysource
     } else {
-        if !matches.is_present("password") {
+        if !app_args.is_present("password") {
             eprintln!("Either a password or keyfile is required!");
             eprintln!("{}", usage);
             std::process::exit(1);
         }
-        KeySource::Password(matches.value_of("password").unwrap())
+        KeySource::Password(app_args.value_of("password").unwrap())
     };
 
-    let export_path = matches.value_of("export_key");
-    let exclude_vcs = !matches.contains_id("no_vcs");
+    let export_path = app_args.value_of("export_key");
+    let exclude_vcs = !app_args.contains_id("no_vcs");
     match run(mode, &store, keysource, export_path, exclude_vcs) {
         Ok(_) => {}
         Err(msg) => {
