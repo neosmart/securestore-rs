@@ -45,7 +45,7 @@ impl Error {
     }
 
     pub fn inner(&self) -> Option<&StdError> {
-        self.inner.as_ref().map(|e| &**e)
+        self.inner.as_deref()
     }
 
     pub(crate) fn from_inner(kind: ErrorKind, inner: Box<StdError>) -> Self {
