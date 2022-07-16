@@ -66,6 +66,12 @@ impl SecretsManager {
         path: P1,
         key_source: KeySource<P2>,
     ) -> Result<Self, Error> {
+        // We intentionally only panic here in debug mode, only because we try to avoid
+        // panicking in production if possible. This isn't a logic error (the code will
+        // still run and everything will work without any incorrect behavior) but the
+        // user will just never get the desired results (loading an existing store with
+        // a newly generated key will just always fail to decrypt the store contents).
+        // Tl;dr it's not unsafe or technically incorrect, just stupid.
         if matches!(key_source, KeySource::Csprng) {
             debug_assert!(false, "It is incorrect to call SecretsManager::load() except with an existing key source!");
         }
