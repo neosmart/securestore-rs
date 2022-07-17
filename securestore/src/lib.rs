@@ -14,9 +14,9 @@ use std::path::{Path, PathBuf};
 /// Used to specify where encryption/decryption keys should be loaded from
 #[non_exhaustive]
 #[derive(Clone)]
-pub enum KeySource<'a, P: AsRef<Path> = &'a Path> {
+pub enum KeySource<'a> {
     /// Load the keys from a binary file on-disk
-    File(P),
+    File(&'a Path),
     /// Derive keys from the specified password
     Password(&'a str),
     /// Automatically generate a new key file from a secure RNG.
@@ -44,10 +44,10 @@ impl SecretsManager {
 
     /// Creates a new vault on-disk at path `path` and loads it in a new
     /// instance of `SecretsManager`.
-    pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(
-        path: P1,
-        key_source: KeySource<P2>,
-    ) -> Result<Self, Error> {
+    ///
+    /// Note that the vault is not written to disk unless and until
+    /// [`SecretsManager::save()`]/[`SecretsManager::save_as()`] is called.
+    pub fn new<P1: AsRef<Path>>(path: P1, key_source: KeySource) -> Result<Self, Error> {
         let path = path.as_ref();
 
         let mut vault = Vault::new();
@@ -60,12 +60,16 @@ impl SecretsManager {
         })
     }
 
-    /// Creates a new instance of `SecretsManager` referencing an existing vault
-    /// located on-disk.
-    pub fn load<P1: AsRef<Path>, P2: AsRef<Path>>(
-        path: P1,
-        key_source: KeySource<P2>,
-    ) -> Result<Self, Error> {
+    /// Load the contents of an on-disk SecureStore vault located at `path`
+    /// into a new `SecretsManager` instance, decrypting its contents with
+    /// the [`KeySource`] specified by the `key_source` parameter.
+    ///
+    /// ## Panics:
+    /// If an attempt is made to load an existing vault but `key_source` is set
+    /// to [`KeySource::Csprng`] (which should only be used when
+    /// initializing a new secrets vault). In release mode, this does not panic
+    /// but the vault will invariably fail to decrypt.
+    pub fn load<P1: AsRef<Path>>(path: P1, key_source: KeySource) -> Result<Self, Error> {
         // We intentionally only panic here in debug mode, only because we try to avoid
         // panicking in production if possible. This isn't a logic error (the code will
         // still run and everything will work without any incorrect behavior) but the
@@ -162,7 +166,7 @@ impl SecretsManager {
     }
 }
 
-impl<'a, P: AsRef<Path>> KeySource<'a, P> {
+impl<'a> KeySource<'a> {
     fn extract_keys(&self, iv: &[u8; shared::IV_SIZE]) -> Result<CryptoKeys, Error> {
         match &self {
             KeySource::Csprng => {
