@@ -223,8 +223,8 @@ fn main() {
     // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
     // positional argument takes priority.
     if mode == Mode::Create
-        && app_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
-        && mode_args.value_source("store").unwrap() != ValueSource::DefaultValue
+        && mode_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
+        && app_args.value_source("store").unwrap() != ValueSource::DefaultValue
         && mode_args.value_of("create_store") != mode_args.value_of("store")
     {
         eprintln!("Conflicting store paths provided!");
