@@ -9,8 +9,6 @@
 //! different languages or frameworks when implementing these traits, if that is
 //! a concern.
 
-use crate::errors::StdError;
-
 /// A trait enabling directly saving a secret of the implementing type to the
 /// SecureStore vault.
 ///
@@ -61,17 +59,20 @@ pub trait BinaryDeserializable
 where
     Self: Sized,
 {
-    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<StdError>>;
+    type Error: std::error::Error + Send + Sync + 'static;
+    fn deserialize(bytes: Vec<u8>) -> Result<Self, Self::Error>;
 }
 
 impl BinaryDeserializable for String {
-    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<StdError>> {
+    type Error = std::string::FromUtf8Error;
+    fn deserialize(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         Ok(String::from_utf8(bytes)?)
     }
 }
 
 impl BinaryDeserializable for Vec<u8> {
-    fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<StdError>> {
+    type Error = std::convert::Infallible;
+    fn deserialize(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         Ok(bytes)
     }
 }

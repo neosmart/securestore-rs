@@ -370,7 +370,7 @@ fn run(
                 eprint!("Value: ");
             }
             let value = read();
-            sman.set(key, value)
+            sman.set(key, value);
         }
         Mode::Delete(key) => sman.remove(key)?,
     }
