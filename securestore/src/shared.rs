@@ -1,4 +1,4 @@
-//! This module contains code that must line up between the various
+//! This (private) module contains code that must line up between the various
 //! implementations of SecureStore in different languages.
 
 use crate::errors::{Error, ErrorKind};
@@ -11,28 +11,28 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 /// The number of keys we require to be derived from source materials
-pub(crate) const KEY_COUNT: usize = 2;
+pub const KEY_COUNT: usize = 2;
 /// The length of each individual key in bytes
-pub(crate) const KEY_LENGTH: usize = 128 / 8;
+pub const KEY_LENGTH: usize = 128 / 8;
 /// The number of rounds used for PBKDF2 key derivation. The resulting key is
 /// still considered to be a secret and is not stored!
-pub(crate) const PBKDF2_ROUNDS: usize = 256_000;
+pub const PBKDF2_ROUNDS: usize = 256_000;
 /// The hash function used for PBKDF2, but only when password-based encryption/
 /// decryption is used. CSPRNG-derived symmetric keys are intentionally not
 /// stretched as their entropy may be constrained by the PBKDF2 digest, (at
 /// the cost of being vulnerable to a weekly seeded or compromised CSPRNG).
-pub(crate) const PBKDF2_DIGEST: fn() -> MessageDigest = MessageDigest::sha1;
+pub const PBKDF2_DIGEST: fn() -> MessageDigest = MessageDigest::sha1;
 /// The size of an initialization vector in bytes
-pub(crate) const IV_SIZE: usize = KEY_LENGTH;
+pub const IV_SIZE: usize = KEY_LENGTH;
 /// The latest version of the vault schema
-pub(crate) const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 3;
 /// The length of a single HMAC result in bytes
-pub(crate) const HMAC_SIZE: usize = 160 / 8; // HMAC-SHA1
+pub const HMAC_SIZE: usize = 160 / 8; // HMAC-SHA1
 
 /// A representation of the on-disk encrypted secrets store. Read and written
 /// via `[SecretsManager]`.
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct Vault {
+pub struct Vault {
     /// The version of the serialized vault
     pub version: u32,
     /// The initialization vector for key derivation
@@ -49,7 +49,7 @@ pub(crate) struct Vault {
 /// A single secret, independently encrypted and individually decrypted
 /// on-demand.
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct EncryptedBlob {
+pub struct EncryptedBlob {
     #[serde(serialize_with = "to_base64", deserialize_with = "iv_from_base64")]
     pub iv: [u8; IV_SIZE],
     #[serde(serialize_with = "to_base64", deserialize_with = "hmac_from_base64")]
@@ -58,17 +58,6 @@ pub(crate) struct EncryptedBlob {
     pub payload: Vec<u8>,
 }
 
-// pub fn nullable_to_base64<T, S>(value: &Option<T>, serializer: S) ->
-// Result<S::Ok, S::Error> where
-//     T: AsRef<[u8]>,
-//     S: Serializer,
-// {
-//     match value {
-//         None => serializer.serialize_str(""),
-//         Some(x) => serializer.serialize_str(&base64::encode(x.as_ref()))
-//     }
-// }
-
 fn to_base64<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
     T: AsRef<[u8]>,
@@ -76,24 +65,6 @@ where
 {
     serializer.serialize_str(&base64::encode(value.as_ref()))
 }
-
-// pub fn nullable_iv_from_base64<'de, D>(deserializer: D) -> Result<Option<[u8;
-// IV_SIZE]>, D::Error> where
-//     D: Deserializer<'de>,
-// {
-//     use serde::de::Error;
-//     let b64: String = Deserialize::deserialize(deserializer)?;
-//
-//     if b64.len() == 0 {
-//         return Ok(None);
-//     }
-//
-//     let mut result = [0u8; IV_SIZE];
-//     base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
-//         .map_err(|e| Error::custom(e.to_string()))?;
-//
-//     Ok(Some(result))
-// }
 
 fn iv_from_base64<'de, D>(deserializer: D) -> Result<[u8; IV_SIZE], D::Error>
 where
@@ -153,7 +124,7 @@ impl Vault {
         Ok(vault)
     }
 
-    pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let path = path.as_ref();
         let file = File::open(path)?;
 
@@ -185,7 +156,7 @@ impl Vault {
 /// out of an abundance of precaution we create/derive two separate keys
 /// entirely for these two operations.
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct CryptoKeys {
+pub struct CryptoKeys {
     /// The key used to encrypt the secrets.
     pub encryption: [u8; KEY_LENGTH],
     /// The key used to generate the HMAC used for authenticated encryption.

@@ -1,3 +1,64 @@
+//! This crate contains the rust implementation of [SecureStore](https://neosmart.net/blog/2020/securestore-open-secrets-format/),
+//! an open standard for cross-language/cross-platform secrets storage and
+//! retrieval. A SecureStore is represented on-disk as a plain-text,
+//! human-readable (JSON) file, intended to be stored and versioned alongside the code using it. Refer to [the accompanying article](https://neosmart.net/blog/2020/securestore-open-secrets-format/) for more information on the SecureStore protocol.
+//!
+//! SecureStore vaults are created by or loaded from an existing vault and
+//! represented in memory as instances of [`SecretsManager`], the primary type
+//! exposed by this crate. Typically, one `SecretsManager` instance should be
+//! created to service all retrieval and storage requests of secrets for an app.
+//!
+//! For maximum flexibility and per the SecureStore protocol, the private keys
+//! used to encrypt or decrypt secrets in the vault can come from different
+//! sources (that may possibly even be used interchangeably); this key source is
+//! specified as a variant of the [`KeySource`] enum at the time of creating or
+//! loading a `SecretsManager` instance.
+//!
+//! For best results, this crate should be used alongside the
+//! [`ssclient`](https://github.com/neosmart/securestore-rs/tree/master/ssclient)
+//! companion CLI app (available via `cargo install ssclient`). Typically, a new
+//! SecureStore vault is created with `ssclient create ...` and loaded with
+//! secrets at the command line with a series of `ssclient set ...`
+//! commands; this crate is then used by your application's logic at runtime to
+//! load the store created by `ssclient` (via [`SecretsManager::load()`]) and
+//! retrieve the secrets (via [`SecretsManager::get()`]), although all the
+//! functionality needed to create and initialize a new store and its secrets
+//! directly yourself (without `ssclient`) is also available via the
+//! `SecretsManager` API.
+//!
+//! # Example
+//!
+//! First, create a new store and set some secret value at the command line with
+//! the companion `ssclient` crate:
+//!
+//! ```sh
+//! $ cargo install ssclient
+//! $ ssclient create secrets.json -k secrets.key
+//! $ ssclient -k secrets.key set db_password pgsql123
+//! ```
+//!
+//! Then in your code, load the store with the newly-created key file and
+//! retrieve the secret:
+//! ```rust
+//! use securestore::{KeySource, SecretsManager};
+//! use std::path::Path;
+//! #
+//! # let mut sman = SecretsManager::new("secrets.json", KeySource::Csprng).unwrap();
+//! # sman.set("db_password", "pgsql123");
+//! # sman.export_keyfile("secrets.key");
+//! # sman.save();
+//! # drop (sman);
+//!
+//! let key_path = Path::new("secrets.key");
+//! let sman = SecretsManager::load("secrets.json", KeySource::File(key_path))
+//!     .expect("Failed to load secrets store!");
+//! let db_password: String = sman.get("db_password").unwrap();
+//! # drop(sman);
+//! # std::fs::remove_file("secrets.key").unwrap();
+//! # std::fs::remove_file("secrets.json").unwrap();
+//!
+//! assert_eq!(db_password, String::from("pgsql123"));
+//! ```
 mod errors;
 mod serial;
 mod shared;
@@ -11,7 +72,23 @@ use openssl::rand;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-/// Used to specify where encryption/decryption keys should be loaded from
+/// A `KeySource` specifies the source of the encryption/decryption keys used by
+/// a [`SecretsManager`] instance when loading or interacting with a SecureStore
+/// vault.
+///
+/// Note that it is possible for different `KeySource` variants to be equivalent
+/// and used interchangeably. For instance, you can derive the secret keys from
+/// a password (via [`KeySource::Password`]) when reading/writing a SecureStore
+/// vault from the command line (via the companion cli app/crate, `ssclient`)
+/// but then export a copy of the keys derived from that password to a keyfile
+/// and use that when accessing the vault from your code in production (as a
+/// [`KeySource::File`] variant). See [`SecretsManager::export_keyfile()`] or
+/// the `ssclient` documentation for more info.
+///
+/// Note that when creating a new vault with [`KeySource::Csprng`] the generated
+/// private keys should be exported via [`SecretsManager::export_keyfile()`]
+/// before dropping the `SecretsManager` instance; the exported keyfile should
+/// then be used the next time the vault is loaded (via [`KeySource::File`]).
 #[non_exhaustive]
 #[derive(Clone)]
 pub enum KeySource<'a> {
@@ -19,7 +96,8 @@ pub enum KeySource<'a> {
     File(&'a Path),
     /// Derive keys from the specified password
     Password(&'a str),
-    /// Automatically generate a new key file from a secure RNG.
+    /// Automatically generate a new key file from a secure RNG, for use with
+    /// [`SecretsManager::new()`] only.
     ///
     /// [`SecretsManager::export_keyfile()`] should be used to export the
     /// keys before the instance is disposed. The store can then subsequently be
@@ -28,7 +106,18 @@ pub enum KeySource<'a> {
     Csprng,
 }
 
-/// The primary interface used for interacting with the SecureStore.
+/// `SecretsManager` is the primary interface used for interacting with this
+/// crate, and is an in-memory representation of an encrypted SecureStore vault.
+///
+/// An existing plain-text SecureStore vault can be loaded with
+/// [`SecretsManager::load()`] or a new vault can be created with
+/// [`SecretsManager::new()`] and then saved to disk
+/// with [`SecretsManager::save()`] or [`SecretsManager::save_as()`].
+///
+/// Individual secrets can be set, retrieved, and removed with
+/// [`SecretsManager::set()`], [`SecretsManager::get()`], and
+/// [`SecretsManager::remove()`] respectively. The names/keys of all secrets
+/// stored in this vault can be enumerated via [`SecretsManager::keys()`].
 pub struct SecretsManager {
     vault: Vault,
     path: PathBuf,
@@ -131,8 +220,16 @@ impl SecretsManager {
         self.cryptokeys.export(path)
     }
 
-    /// Decrypts and retrieves a single secret from the loaded store. If the
-    /// secret cannot be found, returns `Err(ErrorKind::SecretNotFound)`
+    /// Decrypt and retrieve the single secret identified by `name` from the
+    /// loaded store. If the secret cannot be found, an [`Error`] with
+    /// [`Error::kind()`] set to [`ErrorKind::SecretNotFound`] is returned.
+    ///
+    /// Out-of-the-box, this crate supports retrieving `String` and `Vec<u8>`
+    /// secrets. [`BinaryDeserializable`] may be implemented to support
+    /// directly retrieving arbitrary types, but it is preferred to
+    /// internally deserialize from one of the primitive supported types
+    /// previously mentioned after calling [`get()`](Self::get()) to ensure
+    /// maximum compatibility with other SecureStore clients.
     pub fn get<T: BinaryDeserializable>(&self, name: &str) -> Result<T, Error> {
         match self.vault.secrets.get(name) {
             None => ErrorKind::SecretNotFound.into(),
@@ -144,19 +241,28 @@ impl SecretsManager {
         }
     }
 
-    /// Adds a new secret or replaces an existing secret identified by `name` to
-    /// the store.
+    /// Add a new secret or replace the existing secret identified by `name`
+    /// with the value `value` to the store.
+    ///
+    /// Out-of-the-box, this crate supports `String`, `&str`, `Vec<u8>`, and
+    /// `&[u8]` secrets. [`BinarySerializable`] may be implemented to
+    /// support directly setting arbitrary types, but it is preferred to
+    /// internally serialize to one of the primitive supported types
+    /// previously mentioned before calling [`set()`](Self::set()) to ensure
+    /// maximum compatibility with other SecureStore clients.
     pub fn set<T: BinarySerializable>(&mut self, name: &str, value: T) {
         let encrypted = EncryptedBlob::encrypt(&self.cryptokeys, T::serialize(&value));
         self.vault.secrets.insert(name.to_string(), encrypted);
     }
 
-    /// Remove a secret identified by `name` from the store.
+    /// Remove the secret identified by `name` from the store. If there is no
+    /// secret by that name, an [`Error`] with [`Error::kind()`] set to
+    /// [`ErrorKind::SecretNotFound`] is returned.
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
         self.vault
             .secrets
             .remove(name)
-            .ok_or(ErrorKind::SecretNotFound.into())
+            .ok_or_else(|| ErrorKind::SecretNotFound.into())
             .map(|_| ())
     }
 

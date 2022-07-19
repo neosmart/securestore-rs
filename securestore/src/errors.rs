@@ -8,6 +8,7 @@ pub enum ErrorKind {
     /// May be caused by using the wrong key or attempting to load ciphertext
     /// that has been tampered with.
     DecryptionFailure,
+    /// The [`BinarySerializable`](crate::BinarySerializable) type converter
     /// The [`BinaryDeserializable`](crate::BinaryDeserializable) type converter
     /// failed to convert the decrypted payload.
     DeserializationError,
