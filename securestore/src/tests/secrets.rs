@@ -52,10 +52,7 @@ fn secret_not_found() {
     let secrets_path = NamedTempFile::new().unwrap();
     let sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
 
-    assert_eq!(
-        Err(ErrorKind::SecretNotFound.into()),
-        sman.get::<String>("foo")
-    );
+    assert_eq!(Err(ErrorKind::SecretNotFound.into()), sman.get("foo"));
 }
 
 #[test]
@@ -111,5 +108,5 @@ fn binary_secret() {
     let (key, value) = ("secret", b"Hello, world!");
     sman.set(key, &value[..]);
 
-    assert_eq!(&value[..], sman.get::<Vec<u8>>(key).unwrap().as_slice());
+    assert_eq!(&value[..], sman.get_as::<Vec<u8>>(key).unwrap().as_slice());
 }

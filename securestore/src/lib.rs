@@ -52,7 +52,7 @@
 //! let key_path = Path::new("secrets.key");
 //! let sman = SecretsManager::load("secrets.json", KeySource::File(key_path))
 //!     .expect("Failed to load secrets store!");
-//! let db_password: String = sman.get("db_password").unwrap();
+//! let db_password = sman.get("db_password").unwrap();
 //! # drop(sman);
 //! # std::fs::remove_file("secrets.key").unwrap();
 //! # std::fs::remove_file("secrets.json").unwrap();
@@ -221,8 +221,26 @@ impl SecretsManager {
     }
 
     /// Decrypt and retrieve the single secret identified by `name` from the
-    /// loaded store. If the secret cannot be found, an [`Error`] with
-    /// [`Error::kind()`] set to [`ErrorKind::SecretNotFound`] is returned.
+    /// loaded store as a `String`. If the secret cannot be found, an
+    /// [`Error`] with [`Error::kind()`] set to
+    /// [`ErrorKind::SecretNotFound`] is returned.
+    ///
+    /// See [`get_as()`](Self::get_as) to retrieve secrets of arbitrary types
+    /// implementing [`BinaryDeserializable`].
+    /// Out-of-the-box, this crate supports retrieving `String` and `Vec<u8>`
+    /// secrets. [`BinaryDeserializable`] may be implemented to support
+    /// directly retrieving arbitrary types, but it is preferred to
+    /// internally deserialize from one of the primitive supported types
+    /// previously mentioned after calling [`get()`](Self::get()) to ensure
+    /// maximum compatibility with other SecureStore clients.
+    pub fn get(&self, name: &str) -> Result<String, Error> {
+        self.get_as::<String>(name)
+    }
+
+    /// Decrypt and retrieve the single secret identified by `name` from the
+    /// loaded store, deserializing it to the requested type.
+    /// If the secret cannot be found, an [`Error`] with [`Error::kind()`] set
+    /// to [`ErrorKind::SecretNotFound`] is returned.
     ///
     /// Out-of-the-box, this crate supports retrieving `String` and `Vec<u8>`
     /// secrets. [`BinaryDeserializable`] may be implemented to support
@@ -230,7 +248,7 @@ impl SecretsManager {
     /// internally deserialize from one of the primitive supported types
     /// previously mentioned after calling [`get()`](Self::get()) to ensure
     /// maximum compatibility with other SecureStore clients.
-    pub fn get<T: BinaryDeserializable>(&self, name: &str) -> Result<T, Error> {
+    pub fn get_as<T: BinaryDeserializable>(&self, name: &str) -> Result<T, Error> {
         match self.vault.secrets.get(name) {
             None => ErrorKind::SecretNotFound.into(),
             Some(blob) => {

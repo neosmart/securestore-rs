@@ -345,7 +345,7 @@ fn run(
         }
         Mode::Get(GetKey::All, OutputFormat::Text) => {
             for key in sman.keys() {
-                println!("{}: {}", key, sman.get::<String>(key)?);
+                println!("{}: {}", key, sman.get(key)?);
             }
         }
         Mode::Get(GetKey::All, OutputFormat::Json) => {
@@ -354,7 +354,7 @@ fn run(
                 .map(|key| {
                     json!({
                         "key": key,
-                        "value": sman.get::<String>(key).unwrap(),
+                        "value": sman.get(key).unwrap(),
                     })
                 })
                 .collect();
