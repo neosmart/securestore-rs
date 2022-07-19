@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod client_tests;
+
 use clap::{App, Arg, SubCommand, ValueSource};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
