@@ -207,8 +207,8 @@ impl SecretsManager {
     /// Note that changes to a `SecretsManager` instance and its underlying
     /// vault are transient and will be lost unlesss they are flushed to
     /// disk via [`save()`](Self::save()) or [`save_as()`](Self::save_as()).
-    pub fn save_as(&self, path: &Path) -> Result<(), Error> {
-        self.vault.save(path)
+    pub fn save_as<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        self.vault.save(path.as_ref())
     }
 
     /// Exports the private key(s) resident in memory to a path on-disk. Note
