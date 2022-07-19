@@ -294,6 +294,22 @@ fn main() {
     }
 }
 
+/// Retrieves the named secret from the vault just like
+/// [`SecretsManager::get()`] in the usual case, but if the secret cannot be
+/// deserialized into a valid UTF-8 string this function returns the
+/// binary representation of the secret (currently as a base64 string).
+fn get_secret(sman: &SecretsManager, name: &str) -> Result<String, securestore::Error> {
+    match sman.get(name) {
+        Ok(secret) => Ok(secret),
+        Err(e) if matches!(e.kind(), securestore::ErrorKind::DeserializationError) => {
+            let bytes = sman.get_as::<Vec<u8>>(name)?;
+            let encoded = base64::encode(bytes);
+            Ok(format!("base64:{encoded}"))
+        }
+        Err(e) => Err(e)?,
+    }
+}
+
 fn run(
     mode: Mode,
     store: &Path,
@@ -340,27 +356,40 @@ fn run(
     match mode {
         Mode::Create => {}
         Mode::Get(GetKey::Single(key), _) => {
-            let secret: String = sman.get(key)?;
+            let secret = get_secret(&sman, key)?;
             println!("{}", secret);
         }
         Mode::Get(GetKey::All, OutputFormat::Text) => {
             for key in sman.keys() {
-                println!("{}: {}", key, sman.get(key)?);
+                println!("{}: {}", key, get_secret(&sman, key)?);
             }
         }
         Mode::Get(GetKey::All, OutputFormat::Json) => {
             let dump: Vec<_> = sman
                 .keys()
-                .map(|key| {
-                    json!({
+                .map(|key| match sman.get(key) {
+                    Ok(value) => json!({
                         "key": key,
-                        "value": sman.get(key).unwrap(),
-                    })
+                        "value": value,
+                    }),
+                    Err(e) if e.kind() == securestore::ErrorKind::DeserializationError => {
+                        let value = sman.get_as::<Vec<u8>>(key).expect(Box::leak(
+                            format!("Failed to retrieve secret {key}").into_boxed_str(),
+                        ));
+
+                        json!({
+                            "key": key,
+                            "value": value,
+                        })
+                    }
+                    Err(e) => Err(e).expect(Box::leak(
+                        format!("Failed to retrieve secret {key}").into_boxed_str(),
+                    )),
                 })
                 .collect();
 
-            let json =
-                serde_json::to_string_pretty(&dump).expect("Failed to serialize secrets export!");
+            let json = serde_json::to_string_pretty(&dump)
+                .map_err(|err| format!("Failed to serialize secrets to JSON: {err}"))?;
             println!("{}", json);
         }
         Mode::Set(key, Some(value)) => sman.set(key, value),
