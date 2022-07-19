@@ -43,10 +43,10 @@
 //! use securestore::{KeySource, SecretsManager};
 //! use std::path::Path;
 //! #
-//! # let mut sman = SecretsManager::new("secrets.json", KeySource::Csprng).unwrap();
+//! # let mut sman = SecretsManager::new(KeySource::Csprng).unwrap();
 //! # sman.set("db_password", "pgsql123");
 //! # sman.export_keyfile("secrets.key");
-//! # sman.save();
+//! # sman.save_as("secrets.json");
 //! # drop (sman);
 //!
 //! let key_path = Path::new("secrets.key");
@@ -120,7 +120,7 @@ pub enum KeySource<'a> {
 /// stored in this vault can be enumerated via [`SecretsManager::keys()`].
 pub struct SecretsManager {
     vault: Vault,
-    path: PathBuf,
+    path: Option<PathBuf>,
     cryptokeys: CryptoKeys,
 }
 
@@ -132,19 +132,21 @@ impl SecretsManager {
     }
 
     /// Creates a new vault on-disk at path `path` and loads it in a new
-    /// instance of `SecretsManager`.
+    /// instance of `SecretsManager`, encrypting secrets with the specified
+    /// [`KeySource`].
     ///
-    /// Note that the vault is not written to disk unless and until
-    /// [`SecretsManager::save()`]/[`SecretsManager::save_as()`] is called.
-    pub fn new<P1: AsRef<Path>>(path: P1, key_source: KeySource) -> Result<Self, Error> {
-        let path = path.as_ref();
-
+    /// Note that the usage of [`KeySource::File`] is taken to mean that there
+    /// is an existing compatible private key already available at the
+    /// specified path. To generate a new key file, use [`KeySource::Csprng`]
+    /// then export the generated keys with
+    /// [`SecretsManager::export_keyfile()`].
+    pub fn new(key_source: KeySource) -> Result<Self, Error> {
         let mut vault = Vault::new();
         let keys = key_source.extract_keys(&vault.iv)?;
         vault.sentinel = Some(Self::create_sentinel(&keys));
         Ok(SecretsManager {
             cryptokeys: keys,
-            path: PathBuf::from(path),
+            path: None,
             vault,
         })
     }
@@ -152,6 +154,9 @@ impl SecretsManager {
     /// Load the contents of an on-disk SecureStore vault located at `path`
     /// into a new `SecretsManager` instance, decrypting its contents with
     /// the [`KeySource`] specified by the `key_source` parameter.
+    ///
+    /// Note that changes to the vault are not written to disk unless and until
+    /// [`SecretsManager::save()`]/[`SecretsManager::save_as()`] is called.
     ///
     /// ## Panics:
     /// If an attempt is made to load an existing vault but `key_source` is set
@@ -185,7 +190,7 @@ impl SecretsManager {
 
         let sman = SecretsManager {
             cryptokeys: keys,
-            path: PathBuf::from(path),
+            path: Some(PathBuf::from(path)),
             vault,
         };
         Ok(sman)
@@ -197,8 +202,19 @@ impl SecretsManager {
     /// Note that changes to a `SecretsManager` instance and its underlying
     /// vault are transient and will be lost unlesss they are flushed to
     /// disk via [`save()`](Self::save()) or [`save_as()`](Self::save_as()).
+    ///
+    /// ## Panics:
+    /// If a call to `save()` is made on a `SecretsManager` initialized with
+    /// `SecretsManager::new()` rather `SecretsManager::load()`. Use `save_as()`
+    /// instead.
     pub fn save(&self) -> Result<(), Error> {
-        self.vault.save(&self.path)
+        match self.path.as_ref() {
+            Some(path) => self.vault.save(path),
+            None => panic!(concat!(
+                "Cannot call save() on a newly-created store without a path. ",
+                "Use SecretsManager::save_as(&path) instead!"
+            )),
+        }
     }
 
     /// Export the current vault plus any changes that have been made to it to

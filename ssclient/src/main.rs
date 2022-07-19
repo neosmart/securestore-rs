@@ -315,7 +315,7 @@ fn get_secret(sman: &SecretsManager, name: &str) -> Result<String, securestore::
 
 fn run(
     mode: Mode,
-    store: &Path,
+    store_path: &Path,
     keysource: KeySource,
     key_export_path: Option<&str>,
     exclude_vcs: bool,
@@ -334,15 +334,18 @@ fn run(
 
     let mut sman = match &mode {
         Mode::Create => {
-            if store.exists() && std::fs::metadata(store).unwrap().len() > 0 {
-                if !confirm(format!("Overwrite existing keystore {}", store.display())) {
+            if store_path.exists() && std::fs::metadata(store_path).unwrap().len() > 0 {
+                if !confirm(format!(
+                    "Overwrite existing keystore {}",
+                    store_path.display()
+                )) {
                     eprintln!("New store creation aborted.");
                     std::process::exit(EEXIST);
                 }
             }
-            SecretsManager::new(store, keysource.clone())?
+            SecretsManager::new(keysource.clone())?
         }
-        _ => SecretsManager::load(store, keysource.clone())?,
+        _ => SecretsManager::load(store_path, keysource.clone())?,
     };
 
     if let Some(path) = key_export_path {
@@ -407,7 +410,7 @@ fn run(
         Mode::Delete(key) => sman.remove(key)?,
     }
 
-    sman.save()?;
+    sman.save_as(store_path)?;
 
     if exclude_vcs {
         let vcs_exclude_path = match (mode, keysource, key_export_path) {

@@ -9,13 +9,13 @@ use tempfile::NamedTempFile;
 fn basic_store_get() {
     // Create a new secrets manager with a known secret so we don't need to muck
     // around with keyfiles later.
-    let secrets_path = NamedTempFile::new().unwrap();
-    let mut sman = SecretsManager::new(&secrets_path, KeySource::Password("mysecret")).unwrap();
+    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
+    let mut sman = SecretsManager::new(KeySource::Password("mysecret")).unwrap();
 
     // Make sure that we can set values in different &str/String types
     sman.set("foo", "bar");
     sman.set("foo", "bar".to_string());
-    sman.save().unwrap();
+    sman.save_as(&secrets_path).unwrap();
 
     // Do we get the same value back on get?
     let getd: String = sman.get("foo").unwrap();
@@ -30,13 +30,13 @@ fn basic_store_get() {
 
 #[test]
 fn wrong_password() {
-    let secrets_path = NamedTempFile::new().unwrap();
-    let mut sman = SecretsManager::new(&secrets_path, KeySource::Password("mysecret")).unwrap();
+    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
+    let mut sman = SecretsManager::new(KeySource::Password("mysecret")).unwrap();
 
     // Set something
     sman.set("foo", "foo");
     // And save the store to disk
-    sman.save().unwrap();
+    sman.save_as(&secrets_path).unwrap();
 
     // Now try loading the store with wrong password
     match SecretsManager::load(&secrets_path, KeySource::Password("notmysecret")) {
@@ -49,23 +49,22 @@ fn wrong_password() {
 
 #[test]
 fn secret_not_found() {
-    let secrets_path = NamedTempFile::new().unwrap();
-    let sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
+    let sman = SecretsManager::new(KeySource::Csprng).unwrap();
 
     assert_eq!(Err(ErrorKind::SecretNotFound.into()), sman.get("foo"));
 }
 
 #[test]
 fn csprng_export() {
-    let secrets_path = NamedTempFile::new().unwrap();
+    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
+    let key_path = NamedTempFile::new().unwrap().into_temp_path();
 
-    let key_path = NamedTempFile::new().unwrap();
     {
-        let mut sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
+        let mut sman = SecretsManager::new(KeySource::Csprng).unwrap();
         sman.export_keyfile(&key_path).unwrap();
 
         sman.set("foo", "bar");
-        sman.save().unwrap();
+        sman.save_as(&secrets_path).unwrap();
     }
 
     let sman = SecretsManager::load(secrets_path, KeySource::File(key_path.as_ref())).unwrap();
@@ -74,16 +73,15 @@ fn csprng_export() {
 
 #[test]
 fn password_export() {
-    let secrets_path = NamedTempFile::new().unwrap();
+    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
+    let key_path = NamedTempFile::new().unwrap().into_temp_path();
 
-    let key_path = NamedTempFile::new().unwrap();
     {
-        let mut sman =
-            SecretsManager::new(&secrets_path, KeySource::Password("password123")).unwrap();
+        let mut sman = SecretsManager::new(KeySource::Password("password123")).unwrap();
         sman.export_keyfile(&key_path).unwrap();
 
         sman.set("foo", "bar");
-        sman.save().unwrap();
+        sman.save_as(&secrets_path).unwrap();
     }
 
     let sman = SecretsManager::load(secrets_path, KeySource::File(key_path.as_ref())).unwrap();
@@ -92,9 +90,9 @@ fn password_export() {
 
 #[test]
 fn invalid_key_file() {
-    let secrets_path = NamedTempFile::new().unwrap();
-    let key_path = NamedTempFile::new().unwrap();
-    match SecretsManager::new(&secrets_path, KeySource::File(key_path.as_ref())) {
+    let key_path = NamedTempFile::new().unwrap().into_temp_path();
+
+    match SecretsManager::new(KeySource::File(key_path.as_ref())) {
         Ok(_) => panic!("SecretsManager loaded with invalid key file!"),
         Err(e) => assert_eq!(ErrorKind::InvalidKeyfile, e.kind()),
     }
@@ -102,8 +100,7 @@ fn invalid_key_file() {
 
 #[test]
 fn binary_secret() {
-    let secrets_path = NamedTempFile::new().unwrap();
-    let mut sman = SecretsManager::new(&secrets_path, KeySource::Csprng).unwrap();
+    let mut sman = SecretsManager::new(KeySource::Csprng).unwrap();
 
     let (key, value) = ("secret", b"Hello, world!");
     sman.set(key, &value[..]);
