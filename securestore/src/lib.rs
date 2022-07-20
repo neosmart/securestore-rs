@@ -54,7 +54,8 @@
 //! let key_path = Path::new("secrets.key");
 //! let sman = SecretsManager::load("secrets.json", KeySource::File(key_path))
 //!     .expect("Failed to load secrets store!");
-//! let db_password = sman.get("db_password").unwrap();
+//! let db_password = sman.get("db_password")
+//!     .expect("Couldn't get db_password from vault!");
 //! # drop(sman);
 //! # std::fs::remove_file("secrets.key").unwrap();
 //! # std::fs::remove_file("secrets.json").unwrap();
