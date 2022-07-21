@@ -205,7 +205,7 @@ fn main() {
                         .possible_value("text")
                         .help("Specifies the format to export all decrypted values in.")
                         .long_help(concat!(
-                            "Currently supported formats include `text` (the default) and `json`; ",
+                            "Currently supported formats include `text` and `json` (the default); ",
                             "note that if exporting to text, non-string secrets are returned as ",
                             "base64-encoded values (in the format base64:<encoded>, without the ",
                             "angle brackets. If exporting to JSON, text secrets are exported as ",
