@@ -185,12 +185,11 @@ fn main() {
                 ),
         );
 
-    let usage = args.render_usage();
-    let app_args = args.get_matches();
+    let app_args = args.get_matches_mut();
     let subcommand = match app_args.subcommand_name() {
         Some(name) => name,
         None => {
-            eprintln!("{}", usage);
+            let _ = args.print_help();
             return;
         }
     };
@@ -216,7 +215,7 @@ fn main() {
         Some("delete") => Mode::Delete(mode_args.value_of("key").unwrap()),
         Some("create") => Mode::Create,
         _ => {
-            eprintln!("{}", usage);
+            let _ = args.print_help();
             std::process::exit(1);
         }
     };
@@ -280,7 +279,7 @@ fn main() {
     } else {
         if !app_args.is_present("password") {
             eprintln!("Either a password or keyfile is required!");
-            eprintln!("{}", usage);
+            let _ = args.print_help();
             std::process::exit(1);
         }
         KeySource::Password(app_args.value_of("password").unwrap())
