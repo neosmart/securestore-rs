@@ -4,7 +4,10 @@
 format](http://neosmart.net/blog/2020/securestore-open-secrets-format/), although it may be used to
 create and manage SecureStore secrets files for any compatible SecureStore implementation. The
 companion crate to this utility for creating or consuming SecureStore secrets from within rust code
-can be found [in this same crate](../securestore/).
+can be found [in this same repository](https://github.com/neosmart/securestore-rs/tree/master/securestore).
+Per the SecureStore open secrets protocol promise, vaults created or modified with this utility can be
+used from other languages too, for example, with the
+[SecureStore.NET library](https://github.com/neosmart/securestore).
 
 ## The SecureStore open format
 
@@ -30,29 +33,36 @@ The command line options available for usage with `ssclient` can be seen by runn
 
 ```
 USAGE:
-    ssclient [FLAGS] [OPTIONS] [SUBCOMMAND]
-
-FLAGS:
-    -h, --help        Prints help information
-    -p, --password    Prompt for password used to derive key.
-                      In headless environments takes the password as an argument.
-    -V, --version     Prints version information
+    ssclient [OPTIONS] [SUBCOMMAND]
 
 OPTIONS:
-        --export-key <EXPORT_PATH>    Exports a key equivalent to the supplied password
-    -k, --key <KEYFILE>               Use key stored at KEYFILE
-    -s, --store <STORE>               Specify the path to the secrets store to use [default: secrets.json]
+        --export-key <EXPORT_PATH>    Exports a key equivalent to the supplied password.
+    -h, --help                        Print help information
+    -k, --key <KEYFILE>               Use key stored at path KEYFILE.
+        --no-vcs                      Do not exclude private key in vcs ignore file.
+    -p, --password                    Prompt for password used to derive key.
+                                      In headless environments, takes the password as an argument.
+    -s, --store <STORE>               Specify the path to the secrets store to use for all
+                                      operations. [default: secrets.json]
+    -V, --version                     Print version information
 
 SUBCOMMANDS:
-    create    Create a new store
-    delete    Remove a secret from the store
-    get       Decrypt one or more secrets
-    help      Prints this message or the help of the given subcommand(s)
-    set       Add or update an encrypted value to the store
+    create    Create a new SecureStore vault for secrets storage.
+                  See `ssclient help create` for more info
+    delete    Remove a secret from the store.
+                  See `ssclient help set` for more info
+    get       Decrypt and retrieve secrets.
+                  See `ssclient help get` for more info
+    help      Print this message or the help of the given subcommand(s)
+    set       Add or update an encrypted value to/in the store.
+                  See `ssclient help set` for more info
 ```
 
+A long-form version of the help may be seen by executing `ssclient --help`, while help for the individual
+commands may be obtained by running `ssclient help [create|set|get|delete]`
+
 The command line interface has been optimized to reduce friction when working with secrets, it
-should be a ~~joy~~ breeze to manage secrets for a new or existing projects, and developers
+should be ~~a joy~~ easy to manage secrets for a new or existing projects, and developers
 shouldn't have to hesitate or put off securing secrets.
 
 ### Creating a new secrets store
@@ -99,12 +109,18 @@ password-based encryption/decryption for convenience.
 
 When using password-based encryption, you can use `--export-key PATH` to export a copy of the key(s)
 derived from the password to `PATH`, so that the keyfile can subsequently be used together with the
-SecureStore API to decrypt individual secrets in a passwordless fashion:
+SecureStore API to decrypt individual secrets in a passwordless fashion, while you can continue to
+add, remove, or update secrets at the command line with `ssclient` using your password instead of a
+key file.
 
 ```bash
 ~> ssclient create secrets.json --export-key secrets.key
 Password: ***********
 Confirm password: ***********
+
+# Now you can use `ssclient -p` with your old password
+# or `ssclient -k secrets.key` to encrypt/decrypt with
+# the same keys.
 ```
 
 ### Adding or updating secrets
@@ -119,7 +135,7 @@ space excludes it from the history file in most shells):
 ssclient set aws:s3:accesskey 715a868e-3c83-11ea-99bd-af944d8d3940
 ```
 
-or interactively for added security:
+or interactively for added security (to avoid shell history altogether):
 
 ```bash
 ~> ssclient set aws:s3:accesskey
@@ -127,7 +143,10 @@ Password: ********
 Value: 715a868e-3c83-11ea-99bd-af944d8d3940
 ```
 
-If a secret by the same name already exists, it will be overwritten without confirmation.
+If a secret by the same name already exists, it will be overwritten without confirmation. Luckily, you
+are following the SecureStore best recommendations and are storing and versioning your secrets file
+side-by-side with your code under VCS, so you can easily undo from such an error just by using
+`git checkout` or whatever equivalent your VCS exposes!
 
 ### Retrieving and decrypting a single secret
 
@@ -140,6 +159,12 @@ defaults to `secrets.json` and the mode of encryption/decryption can be picked w
 ~> ssclient -k secrets.key get aws:s3:accesskey
 715a868e-3c83-11ea-99bd-af944d8d3940
 ```
+
+While the `ssclient` interface to a SecureStore vault only supports saving text-based secrets to a
+vault, the SecureStore API can be used (e.g. via [securestore](https://github.com/neosmart/securestore-rs)
+or (SecureStore.NET)[https://github.com/neosmart/SecureStore]) to store binary secrets to a vault.
+`ssclient` can retrieve these binary secrets and will return them as base64-encoded strings prefixed
+with `base64:`, e.g. `base64:cGFzc3dvcmQ=`.
 
 When used in a headless environment, the password may be specified directly as a command line
 argument (after the `-p`/`--password`). **We do not recommend doing this, export and use a keyfile
@@ -195,7 +220,7 @@ Password: ********
 ## License and Copyright
 
 `ssclient` was created by Mahmoud Al-Qudsi of NeoSmart Technologies, and is Copyright NeoSmart
-Technologies 2019-2010. `ssclient` is released to the general public without any warranty in the
+Technologies 2019-2022. `ssclient` is released to the general public without any warranty in the
 hopes that it might be beneficial, dually licensed (at your choosing) under the MIT and Apache
 2.0 public licenses.
 
