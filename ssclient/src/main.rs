@@ -47,7 +47,7 @@ fn main() {
     let mut args = App::new("SecureStore")
         .version(env!("CARGO_PKG_VERSION"))
         .author(concat!(
-            "Copyright NeoSmart Technologies 2018-2020.\n",
+            "Copyright NeoSmart Technologies 2018-2022.\n",
             "Developed by Mahmoud Al-Qudsi and SecureStore contributors"
         ))
         .about(concat!(
