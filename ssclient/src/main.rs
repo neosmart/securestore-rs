@@ -60,7 +60,11 @@ fn main() {
                 .short('s')
                 .long("store")
                 .value_name("STORE")
-                .help("Specify the path to the secrets store to use")
+                .help("Specify the path to the secrets store to use for all operations.")
+                .long_help(concat!(
+                    "When omitted, the standardized SecureStore vault name/path",
+                    "of 'secrets.json' is used."
+                ))
                 .default_value("secrets.json")
                 .takes_value(true),
         )
@@ -74,7 +78,17 @@ fn main() {
                 .conflicts_with("keyfile")
                 .help(concat!(
                     "Prompt for password used to derive key. \n",
-                    "In headless environments takes the password as an argument."
+                    "In headless environments, takes the password as an argument."
+                ))
+                .long_help(concat!(
+                    "If neither `-p` (use password) nor `-k` (use keyfile) is specified ",
+                    "ssclient defaults to password-based encryption/decryption.\n",
+                    "When used in an interactive tty, the password may not be specified ",
+                    "as a command line argument; instead ssclient will provide a secure ",
+                    "prompt for the password to be entered in.\n",
+                    "When used in a headless environment or as part of a script without ",
+                    "stdin connected to a tty, the password may be specified as an argument ",
+                    "to the `-p`/`--password` switch.",
                 )),
         )
         .arg(
@@ -87,7 +101,7 @@ fn main() {
                 // to password-based encryption if no other method is specified.
                 // .requires("password")
                 // .conflicts_with("keyfile")
-                .help("Exports a key equivalent to the supplied password")
+                .help("Exports a key equivalent to the supplied password.")
                 .long_help(concat!(
                     "When used in combination with password-based encryption/",
                     "decryption, exports a keyfile containing the encryption/",
@@ -107,81 +121,145 @@ fn main() {
                 .alias("keyfile")
                 .alias("key-file")
                 .value_name("KEYFILE")
-                .help("Use key stored at KEYFILE")
+                .help("Use key stored at path KEYFILE.")
                 .takes_value(true),
         )
         .arg(
             Arg::new("no_vcs")
                 .long("no-vcs")
                 .takes_value(false)
-                .help("Do not exclude private key in vcs ignore file"),
+                .help("Do not exclude private key in vcs ignore file.")
+                .long_help(concat!(
+                    "By default, when ssclient generates a new key file (either when a new ",
+                    "SecureStore vault is created via `ssclient create -k secrets.key` or ",
+                    "when exporting a key file to use interchangeably with a password via ",
+                    "`ssclient --export-key secrets.key ...`), if the path to the key is found ",
+                    "to reside in a VCS-owned directory, ssclient generates an exclude rule for ",
+                    "for the newly created key file to ensure it is never accidentally committed ",
+                    "to a repository. The usage of `--no-vcs` suppresses this check and behavior.",
+                )),
         )
         .subcommand(
             SubCommand::with_name("create")
-                .about("Create a new store")
+                .about(concat!(
+                    "Create a new SecureStore vault for secrets storage.\n",
+                    "See `ssclient help create` for more info"
+                ))
                 .arg(
                     Arg::with_name("create_store")
                         .index(1)
                         .value_name("STORE")
                         .default_value("secrets.json")
-                        .help("The path to the secrets store to create"),
+                        .help("The path to the SecureStore vault to create.")
+                        .long_help(concat!(
+                            "If not provided, the SecureStore standard location 'secrets.json' ",
+                            "is used as a default.",
+                        )),
                 ),
         )
         .subcommand(
             SubCommand::with_name("get")
-                .about("Decrypt one or more secrets")
+                .about(concat!(
+                    "Decrypt and retrieve secrets.\n",
+                    "See `ssclient help get` for more info"
+                ))
+                .long_about(concat!(
+                    "The value of a single secret may be retrieved by specifying its name ",
+                    "as the first parameter after `get`, or all secrets may be retrieved by ",
+                    "using --all in place of the secret name.\n",
+                    "Plain-text secrets are retrieved as-is when looking up a single secret ",
+                    "or when exporting all secrets to text, but binary secrets that cannot be ",
+                    "interpreted as UTF-8 strings will be encoded as base64 and returned ",
+                    "as `base64:<encoded>`. Secrets are always retrieved as-is if exporting ",
+                    "to a JSON file (via `ssclient get --all --format json`).",
+                ))
                 .arg(
-                    Arg::with_name("all")
-                        .short('a')
-                        .long("all")
-                        .help("Decrypt all secrets (e.g. for export)"),
+                    Arg::with_name("get_key")
+                        .index(1)
+                        .value_name("KEY")
+                        .conflicts_with("all")
+                        .required(true)
+                        .help("The name of the secret to be decrypted."),
                 )
                 .arg(
-                    Arg::with_name("format")
+                    Arg::with_name("get_all")
+                        .short('a')
+                        .long("all")
+                        .help("Decrypt all secrets, e.g. for export.")
+                        .long_help(concat!(
+                            "Enumerates and decrypts all secrets found in the SecureStore vault, ",
+                            "to the format specified by the `--format` argument. Output is ",
+                            "written to stdout and should be redirected to a file with an ",
+                            "extension matching the format for best results.\n\n",
+                            "Examples: \n",
+                            "  ssclient -k secrets.key get --all --format json > passwords.json\n",
+                            "  ssclient -s secrets.json get --all --format text > passwords.txt\n",
+                        )),
+                )
+                .arg(
+                    Arg::with_name("get_format")
                         .long("format")
                         .takes_value(true)
                         .requires("all")
                         .possible_value("json")
                         .possible_value("text")
-                        .help("Specifies the format to export all decrypted values in"),
-                )
-                .arg(
-                    Arg::with_name("key")
-                        .index(1)
-                        .value_name("KEY")
-                        .conflicts_with("all")
-                        .required(true)
-                        .help("The name of the secret to be decrypted"),
+                        .help("Specifies the format to export all decrypted values in.")
+                        .long_help(concat!(
+                            "Currently supported formats include `text` (the default) and `json`; ",
+                            "note that if exporting to text, non-string secrets are returned as ",
+                            "base64-encoded values (in the format base64:<encoded>, without the ",
+                            "angle brackets. If exporting to JSON, text secrets are exported as ",
+                            "JSON strings, and binary secrets are exported as JSON arrays of ",
+                            "byte values.",
+                        )),
                 ),
         )
         .subcommand(
             SubCommand::with_name("set")
-                .about("Add or update an encrypted value to the store")
+                .about(concat!(
+                    "Add or update an encrypted value to/in the store.\n",
+                    "See `ssclient help set` for more info"
+                ))
                 .arg(
-                    Arg::with_name("key")
+                    Arg::with_name("set_key")
                         .index(1)
                         .value_name("KEY")
                         .required(true)
-                        .help("The name of the secret to be created/updated"),
+                        .help("The name of the secret to be created/updated.")
+                        .long_help(concat!(
+                            "If a secret already exists by the same name, its value will be ",
+                            "silently overwritten; use with appropriate care. SecureStore ",
+                            "vaults are intended to be stored under version control - remember ",
+                            "that you can always use git/hg/etc to retrieve an older version ",
+                            "of the secrets file if you made a mistake!",
+                        )),
                 )
                 .arg(
-                    Arg::with_name("value")
+                    Arg::with_name("set_value")
                         .index(2)
                         .value_name("VALUE")
                         .required(false)
-                        .help("The value of the secret identifyied by KEY"),
+                        .help("The value of the secret identified by KEY.")
+                        .long_help(concat!(
+                            "VALUE may be omitted to instead enter the secret in an ",
+                            "ssclient-provided secure prompt instead, to avoid secrets being ",
+                            "logged to shell history or similar."
+                        )),
                 ),
         )
         .subcommand(
             SubCommand::with_name("delete")
                 .alias("remove")
-                .about("Remove a secret from the store")
+                .about(concat!(
+                    "Remove a secret from the store.\n",
+                    "See `ssclient help set` for more info"
+                ))
                 .arg(
-                    Arg::with_name("key")
+                    Arg::with_name("delete_key")
                         .value_name("KEY")
                         .index(1)
                         .required(true)
-                        .help("The unique name of the secret to be deleted"),
+                        .help("The unique name of the secret to be deleted."),
                 ),
         );
 
@@ -198,21 +276,21 @@ fn main() {
 
     let mode = match app_args.subcommand_name() {
         Some("get") => {
-            let key = match mode_args.value_of("key") {
+            let key = match mode_args.value_of("get_key") {
                 Some(key) => GetKey::Single(key),
                 None => GetKey::All,
             };
-            let format = match mode_args.value_of("format") {
+            let format = match mode_args.value_of("get_format") {
                 Some("text") => OutputFormat::Text,
                 _ => OutputFormat::Json,
             };
             Mode::Get(key, format)
         }
         Some("set") => Mode::Set(
-            mode_args.value_of("key").unwrap(),
-            mode_args.value_of("value"),
+            mode_args.value_of("set_key").unwrap(),
+            mode_args.value_of("set_value"),
         ),
-        Some("delete") => Mode::Delete(mode_args.value_of("key").unwrap()),
+        Some("delete") => Mode::Delete(mode_args.value_of("delete_key").unwrap()),
         Some("create") => Mode::Create,
         _ => {
             let _ = args.print_help();
@@ -227,7 +305,7 @@ fn main() {
     if mode == Mode::Create
         && mode_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
         && app_args.value_source("store").unwrap() != ValueSource::DefaultValue
-        && mode_args.value_of("create_store") != mode_args.value_of("store")
+        && mode_args.value_of("create_store") != app_args.value_of("store")
     {
         eprintln!("Conflicting store paths provided!");
         std::process::exit(1);
@@ -235,7 +313,7 @@ fn main() {
 
     // We can't use `.is_present()` as the default value would coerce a true result.
     // It is safe to call unwrap because a default value is always present.
-    let store = if mode == Mode::Create
+    let store_path = if mode == Mode::Create
         && mode_args.value_source("create_store").unwrap() == ValueSource::CommandLine
     {
         Path::new(mode_args.value_of("create_store").unwrap())
@@ -244,8 +322,8 @@ fn main() {
         Path::new(app_args.value_of("store").unwrap())
     };
 
-    if mode != Mode::Create && !store.exists() {
-        eprintln!("Cannot find secure store: {}", store.display());
+    if mode != Mode::Create && !store_path.exists() {
+        eprintln!("Cannot find secure store: {}", store_path.display());
         // 0x02 is both ENOENT and ERROR_FILE_NOT_FOUND 👍
         std::process::exit(ENOENT);
     }
@@ -255,7 +333,6 @@ fn main() {
         let keyfile = Path::new(app_args.value_of("keyfile").unwrap());
         KeySource::File(keyfile)
     } else if is_tty {
-        let keysource;
         loop {
             eprint!("Password: ");
             password = secure_read();
@@ -272,13 +349,11 @@ fn main() {
                     continue;
                 }
             }
-            keysource = KeySource::Password(&password);
-            break;
+            break KeySource::Password(&password);
         }
-        keysource
     } else {
         if !app_args.is_present("password") {
-            eprintln!("Either a password or keyfile is required!");
+            eprintln!("Either a password or keyfile is required in headless mode!");
             let _ = args.print_help();
             std::process::exit(1);
         }
@@ -287,7 +362,7 @@ fn main() {
 
     let export_path = app_args.value_of("export_key");
     let exclude_vcs = !app_args.contains_id("no_vcs");
-    match run(mode, &store, keysource, export_path, exclude_vcs) {
+    match run(mode, &store_path, keysource, export_path, exclude_vcs) {
         Ok(_) => {}
         Err(msg) => {
             eprintln!("{}", msg);
