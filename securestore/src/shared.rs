@@ -71,6 +71,9 @@ where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
+    // We can't deserialize to a borrowed type (&str or &[u8]) because we deserialize with
+    // serde_json::from_reader, which doesn't support borrowing and mandates copying into a
+    // user-provided buffer :(
     let b64: String = Deserialize::deserialize(deserializer)?;
 
     let mut result = [0u8; IV_SIZE];
