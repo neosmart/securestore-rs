@@ -675,9 +675,10 @@ fn add_path_to_ignore_file(
             result => result,
         }?;
 
-        // An ignore rule for foo and ./foo should both match since we are excluding a
+        // An ignore rule for foo and /foo should both match since we are excluding a
         // path in the same directory as the ignore file itself.
-        let cleaned_rule = line.strip_prefix("./").unwrap_or(&line);
+        // NB: An ignore rule for ./foo is a red herring and will not match!
+        let cleaned_rule = line.strip_prefix("/").unwrap_or(&line);
 
         // Check if the processed line/rule already excludes the path we want to exclude
         if matched_paths.contains(&cleaned_rule) {
@@ -690,9 +691,10 @@ fn add_path_to_ignore_file(
     // We only get here if the ignore file didn't contain the path we want to
     // exclude.
 
-    // While we support both pathed (./foo) and unpathed (foo) pre-existing rules,
+    // While we support both pathed (/foo) and unpathed (foo) pre-existing rules,
     // we prefer to always write out pathed rules only.
-    let rule = format!("./{path_file_name}\n");
+    // NB: ./foo is NOT correct and will not match!
+    let rule = format!("/{path_file_name}\n");
     let mut writer = std::fs::OpenOptions::new()
         .append(true)
         .open(ignore_file)
