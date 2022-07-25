@@ -177,7 +177,7 @@ fn main() {
                     Arg::with_name("get_key")
                         .index(1)
                         .value_name("KEY")
-                        .conflicts_with("all")
+                        .conflicts_with("get_all")
                         .required(true)
                         .help("The name of the secret to be decrypted."),
                 )
@@ -200,7 +200,7 @@ fn main() {
                     Arg::with_name("get_format")
                         .long("format")
                         .takes_value(true)
-                        .requires("all")
+                        .requires("get_all")
                         .possible_value("json")
                         .possible_value("text")
                         .help("Specifies the format to export all decrypted values in.")
