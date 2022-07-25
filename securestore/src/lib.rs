@@ -35,7 +35,7 @@
 //!
 //! ```sh
 //! $ cargo install ssclient
-//! $ ssclient create secrets.json -k secrets.key
+//! $ ssclient create secrets.json --export-key secrets.key
 //! $ ssclient -k secrets.key set db_password pgsql123
 //! ```
 //!
