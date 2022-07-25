@@ -172,28 +172,118 @@ impl CryptoKeys {
     /// implementations.
     pub fn export<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         let mut file = File::create(path)?;
+        let mut b64_writer = base64::write::EncoderStringWriter::new(base64::STANDARD);
 
-        file.write_all(&self.encryption)?;
-        file.write_all(&self.hmac)?;
+        file.write_all(b"-----BEGIN PRIVATE KEY-----\n")
+            .map_err(|e| Error::from_inner(ErrorKind::IoError, Box::new(e)))?;
+
+        b64_writer.write_all(&self.encryption).unwrap();
+        b64_writer.write_all(&self.hmac).unwrap();
+        let encoded = b64_writer.into_inner();
+        // encoded.as_bytes() is guaranteed to be ASCII, so we can index it safely
+        let mut encoded = encoded.as_bytes();
+
+        loop {
+            let line_bytes = match encoded.len() {
+                0 => break,
+                65.. => &encoded[0..63],
+                _ => encoded,
+            };
+
+            file.write_all(line_bytes)
+                .and_then(|_| file.write_all(b"\n"))
+                .map_err(|e| Error::from_inner(ErrorKind::IoError, Box::new(e)))?;
+            encoded = &encoded[line_bytes.len()..];
+        }
+
+        file.write_all(b"-----END PRIVATE KEY-----\n")
+            .map_err(|e| Error::from_inner(ErrorKind::IoError, Box::new(e)))?;
 
         Ok(())
     }
 
     /// Imports keys from a bytestream
     pub fn import<R: Read>(mut source: R) -> Result<Self, Error> {
-        let mut keys: CryptoKeys = CryptoKeys {
-            encryption: [0u8; KEY_LENGTH],
-            hmac: [0u8; KEY_LENGTH],
-        };
+        const MAX_READ: usize = 4096;
 
-        source
-            .read_exact(&mut keys.encryption)
-            .map_err(|_| ErrorKind::InvalidKeyfile)?;
-        source
-            .read_exact(&mut keys.hmac)
-            .map_err(|_| ErrorKind::InvalidKeyfile)?;
+        let mut buffer = vec![0u8; 128];
+        let mut total_read = 0;
+        loop {
+            let bytes_read = match source.read(&mut buffer[total_read..]) {
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(Error::from_inner(ErrorKind::IoError, Box::new(e))),
+                Ok(0) => break,
+                Ok(count) => count,
+            };
+            total_read += bytes_read;
 
-        Ok(keys)
+            if total_read > MAX_READ {
+                return Err(ErrorKind::InvalidKeyfile.into());
+            } else if total_read == buffer.len() {
+                buffer.resize(buffer.len() + 128, 0u8);
+            }
+        }
+        // Shadow `buffer` to prevent reading past valid data
+        let buffer = &buffer[..total_read];
+
+        if buffer.len() == KEY_LENGTH * KEY_COUNT {
+            // Input was binary keys concatenated (legacy or in-memory format)
+            Self::import_binary(buffer)
+        } else {
+            // Try loading as base64/PEM format
+            use std::io::{BufRead, BufReader};
+
+            #[derive(PartialEq)]
+            enum ParseState {
+                WaitingStart,
+                WaitingEnd,
+                Complete,
+            }
+
+            let mut encoded = String::new();
+            let mut state = ParseState::WaitingStart;
+            let source = BufReader::new(buffer);
+            for line in source.lines() {
+                let line = line.map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, Box::new(e)))?;
+                let line = line.trim();
+
+                if state == ParseState::WaitingStart {
+                    if line == "-----BEGIN PRIVATE KEY-----" {
+                        state = ParseState::WaitingEnd;
+                    }
+                    continue;
+                } else if line == "-----END PRIVATE KEY-----" {
+                    state = ParseState::Complete;
+                    break;
+                }
+
+                encoded.push_str(line);
+            }
+
+            if state != ParseState::Complete {
+                return Err(ErrorKind::InvalidKeyfile.into());
+            }
+            let decoded = base64::decode(encoded)
+                .map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, Box::new(e)))?;
+            if decoded.len() != KEY_COUNT * KEY_LENGTH {
+                return Err(ErrorKind::InvalidKeyfile.into());
+            }
+
+            Self::import_binary(&decoded)
+        }
+    }
+
+    fn import_binary(buffer: &[u8]) -> Result<Self, Error>  {
+        use std::convert::TryInto;
+
+        if buffer.len() != KEY_COUNT * KEY_LENGTH {
+            return ErrorKind::InvalidKeyfile.into();
+        }
+
+        Ok(CryptoKeys {
+            encryption: buffer[0..KEY_LENGTH].try_into().unwrap(),
+            hmac: buffer[KEY_LENGTH..][..KEY_LENGTH].try_into().unwrap(),
+        })
     }
 }
 

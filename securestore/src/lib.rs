@@ -332,7 +332,7 @@ impl<'a> KeySource<'a> {
             }
             KeySource::File(path) => {
                 let attr = std::fs::metadata(path)?;
-                if attr.len() as usize != shared::KEY_COUNT * shared::KEY_LENGTH {
+                if (attr.len() as usize) < (shared::KEY_COUNT * shared::KEY_LENGTH) {
                     return ErrorKind::InvalidKeyfile.into();
                 }
 
