@@ -127,6 +127,15 @@ pub struct SecretsManager {
     cryptokeys: CryptoKeys,
 }
 
+// We aren't manually implementing Send/Sync for `SecretsManager`, but we need
+// to make sure that it implements them all the same for ergonomic reasons.
+const _: () = {
+    fn assert_send<T: Send>() {}
+    let _ = assert_send::<SecretsManager>;
+    fn assert_sync<T: Sync>() {}
+    let _ = assert_sync::<SecretsManager>;
+};
+
 impl SecretsManager {
     fn create_sentinel(keys: &CryptoKeys) -> EncryptedBlob {
         let mut random = [0u8; shared::IV_SIZE * 2];
