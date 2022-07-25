@@ -28,6 +28,10 @@
 //! directly yourself (without `ssclient`) is also available via the
 //! `SecretsManager` API.
 //!
+//! A full and annotated example of using `ssclient` and this `securestore`
+//! crate in tandem [may be found online](https://github.com/neosmart/securestore-rs/blob/master/README.md),
+//! but an abbreviated version is shown below.
+//!
 //! # Example
 //!
 //! First, create a new store and set some secret value at the command line with
