@@ -1,8 +1,8 @@
 //! This crate contains the rust implementation of [SecureStore](https://neosmart.net/blog/2020/securestore-open-secrets-format/),
 //! an open standard for cross-language/cross-platform secrets storage and
 //! retrieval. A SecureStore is represented on-disk as a plain-text,
-//! human-readable (JSON) file, intended to be stored and versioned alongside the
-//! code using it. Refer to [the accompanying article](https://neosmart.net/blog/2020/securestore-open-secrets-format/)
+//! human-readable (JSON) file, intended to be stored and versioned alongside
+//! the code using it. Refer to [the accompanying article](https://neosmart.net/blog/2020/securestore-open-secrets-format/)
 //! for more information on the SecureStore protocol.
 //!
 //! SecureStore vaults are created by or loaded from an existing vault and
