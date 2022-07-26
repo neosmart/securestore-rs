@@ -206,6 +206,11 @@ impl CryptoKeys {
     pub fn import<R: Read>(mut source: R) -> Result<Self, Error> {
         const MAX_READ: usize = 4096;
 
+        // A legacy/binary key is KEY_COUNT * KEY_LENGTH == 32 bytes, while the new
+        // ASCII-armored base64 key format (PEM-like) is 90 bytes as generated
+        // by `export()` (begin block, new line, 4*(KEY_COUNT * KEY_LENGTH)/3
+        // base64 bytes (with a new line after every 64th base64 character), end
+        // block, and trailing new line).
         let mut buffer = vec![0u8; 128];
         let mut total_read = 0;
         loop {
@@ -244,7 +249,8 @@ impl CryptoKeys {
             let mut state = ParseState::WaitingStart;
             let source = BufReader::new(buffer);
             for line in source.lines() {
-                let line = line.map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, Box::new(e)))?;
+                let line =
+                    line.map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, Box::new(e)))?;
                 let line = line.trim();
 
                 if state == ParseState::WaitingStart {
@@ -273,7 +279,7 @@ impl CryptoKeys {
         }
     }
 
-    fn import_binary(buffer: &[u8]) -> Result<Self, Error>  {
+    fn import_binary(buffer: &[u8]) -> Result<Self, Error> {
         use std::convert::TryInto;
 
         if buffer.len() != KEY_COUNT * KEY_LENGTH {
