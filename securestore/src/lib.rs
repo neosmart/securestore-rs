@@ -285,7 +285,7 @@ impl SecretsManager {
             Some(blob) => {
                 let decrypted = blob.decrypt(&self.cryptokeys)?;
                 T::deserialize(decrypted)
-                    .map_err(|e| Error::from_inner(ErrorKind::DeserializationError, Box::new(e)))
+                    .map_err(|e| Error::from_inner(ErrorKind::DeserializationError, e))
             }
         }
     }

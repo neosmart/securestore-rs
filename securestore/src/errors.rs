@@ -49,10 +49,13 @@ impl Error {
         self.inner.as_deref()
     }
 
-    pub(crate) fn from_inner(kind: ErrorKind, inner: Box<StdError>) -> Self {
+    pub(crate) fn from_inner<E>(kind: ErrorKind, inner: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
         Error {
             kind,
-            inner: Some(inner),
+            inner: Some(Box::new(inner)),
         }
     }
 }

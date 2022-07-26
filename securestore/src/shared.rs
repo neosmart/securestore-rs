@@ -175,7 +175,7 @@ impl CryptoKeys {
         let mut b64_writer = base64::write::EncoderStringWriter::new(base64::STANDARD);
 
         file.write_all(b"-----BEGIN PRIVATE KEY-----\n")
-            .map_err(|e| Error::from_inner(ErrorKind::IoError, Box::new(e)))?;
+            .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?;
 
         b64_writer.write_all(&self.encryption).unwrap();
         b64_writer.write_all(&self.hmac).unwrap();
@@ -192,12 +192,12 @@ impl CryptoKeys {
 
             file.write_all(line_bytes)
                 .and_then(|_| file.write_all(b"\n"))
-                .map_err(|e| Error::from_inner(ErrorKind::IoError, Box::new(e)))?;
+                .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?;
             encoded = &encoded[line_bytes.len()..];
         }
 
         file.write_all(b"-----END PRIVATE KEY-----\n")
-            .map_err(|e| Error::from_inner(ErrorKind::IoError, Box::new(e)))?;
+            .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?;
 
         Ok(())
     }
@@ -216,7 +216,7 @@ impl CryptoKeys {
         loop {
             let bytes_read = match source.read(&mut buffer[total_read..]) {
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(e) => return Err(Error::from_inner(ErrorKind::IoError, Box::new(e))),
+                Err(e) => return Err(Error::from_inner(ErrorKind::IoError, e)),
                 Ok(0) => break,
                 Ok(count) => count,
             };
@@ -249,8 +249,7 @@ impl CryptoKeys {
             let mut state = ParseState::WaitingStart;
             let source = BufReader::new(buffer);
             for line in source.lines() {
-                let line =
-                    line.map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, Box::new(e)))?;
+                let line = line.map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, e))?;
                 let line = line.trim();
 
                 if state == ParseState::WaitingStart {
@@ -270,7 +269,7 @@ impl CryptoKeys {
                 return Err(ErrorKind::InvalidKeyfile.into());
             }
             let decoded = base64::decode(encoded)
-                .map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, Box::new(e)))?;
+                .map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, e))?;
             if decoded.len() != KEY_COUNT * KEY_LENGTH {
                 return Err(ErrorKind::InvalidKeyfile.into());
             }
