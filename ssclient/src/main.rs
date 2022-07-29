@@ -620,10 +620,11 @@ fn add_path_to_ignore_file(
         panic!("Ignore file must be in the same directory as the file to be excluded from vcs!");
     }
     if ignore_file.exists() && !ignore_file.is_file() {
-        panic!(
+        eprintln!(
             "An ignore file already exists at {} but is not a regular file!",
             ignore_file.display()
         );
+        return Ok(false);
     }
 
     // We treat the contents of the ignore file as UTF-8, so we can't handle
