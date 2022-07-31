@@ -229,7 +229,7 @@ impl SecretsManager {
     ///
     /// ## Panics:
     /// If a call to `save()` is made on a `SecretsManager` initialized with
-    /// `SecretsManager::new()` rather `SecretsManager::load()`. Use `save_as()`
+    /// `SecretsManager::new()` rather `SecretsManager::load()`; use `save_as()`
     /// instead.
     pub fn save(&self) -> Result<(), Error> {
         match self.path.as_ref() {
