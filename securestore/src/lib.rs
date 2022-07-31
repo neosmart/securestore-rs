@@ -134,10 +134,13 @@ pub struct SecretsManager {
 // We aren't manually implementing Send/Sync for `SecretsManager`, but we need
 // to make sure that it implements them all the same for ergonomic reasons.
 const _: () = {
-    const fn assert_send<T: Send>() {}
-    let _ = assert_send::<SecretsManager>();
-    const fn assert_sync<T: Sync>() {}
-    let _ = assert_sync::<SecretsManager>();
+    // It is sufficient to declare the generic function pointers; calling them
+    // too would require using `const fn` with Send/Sync constraints wasn't
+    // stabilized until rustc 1.61.0
+    fn assert_send<T: Send>() {}
+    let _ = assert_send::<SecretsManager>;
+    fn assert_sync<T: Sync>() {}
+    let _ = assert_sync::<SecretsManager>;
 };
 
 impl SecretsManager {
