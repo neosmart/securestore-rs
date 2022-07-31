@@ -256,14 +256,8 @@ impl SecretsManager {
     /// [`Error`] with [`Error::kind()`] set to
     /// [`ErrorKind::SecretNotFound`] is returned.
     ///
-    /// See [`get_as()`](Self::get_as) to retrieve secrets of arbitrary types
-    /// implementing [`BinaryDeserializable`].
-    /// Out-of-the-box, this crate supports retrieving `String` and `Vec<u8>`
-    /// secrets. [`BinaryDeserializable`] may be implemented to support
-    /// directly retrieving arbitrary types, but it is preferred to
-    /// internally deserialize from one of the primitive supported types
-    /// previously mentioned after calling [`get()`](Self::get()) to ensure
-    /// maximum compatibility with other SecureStore clients.
+    /// See [`get_as()`](Self::get_as) to retrieve either binary secrets or
+    /// secrets of arbitrary types implementing [`BinaryDeserializable`].
     pub fn get(&self, name: &str) -> Result<String, Error> {
         self.get_as::<String>(name)
     }
