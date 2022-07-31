@@ -6,6 +6,7 @@ use openssl::hash::MessageDigest;
 use openssl::rand;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -63,7 +64,7 @@ where
     T: AsRef<[u8]>,
     S: Serializer,
 {
-    serializer.serialize_str(&base64::encode(value.as_ref()))
+    serializer.serialize_str(&openssl::base64::encode_block(value.as_ref()))
 }
 
 fn iv_from_base64<'de, D>(deserializer: D) -> Result<[u8; IV_SIZE], D::Error>
@@ -76,11 +77,10 @@ where
     // and mandates copying into a user-provided buffer :(
     let b64: String = Deserialize::deserialize(deserializer)?;
 
-    let mut result = [0u8; IV_SIZE];
-    base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
+    let bytes = openssl::base64::decode_block(&b64)
         .map_err(|e| Error::custom(e.to_string()))?;
 
-    Ok(result)
+    Ok(bytes.as_slice().try_into().unwrap())
 }
 
 fn hmac_from_base64<'de, D>(deserializer: D) -> Result<[u8; HMAC_SIZE], D::Error>
@@ -90,11 +90,10 @@ where
     use serde::de::Error;
     let b64: String = Deserialize::deserialize(deserializer)?;
 
-    let mut result = [0u8; HMAC_SIZE];
-    base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
+    let bytes = openssl::base64::decode_block(&b64)
         .map_err(|e| Error::custom(e.to_string()))?;
 
-    Ok(result)
+    Ok(bytes.as_slice().try_into().unwrap())
 }
 
 fn vec_from_base64<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
@@ -102,8 +101,9 @@ where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
-    let s: String = Deserialize::deserialize(deserializer)?;
-    base64::decode(&s).map_err(|e| Error::custom(e.to_string()))
+    let b64: String = Deserialize::deserialize(deserializer)?;
+    openssl::base64::decode_block(&b64)
+        .map_err(|e| Error::custom(e.to_string()))
 }
 
 impl Vault {
@@ -172,15 +172,14 @@ impl CryptoKeys {
     /// implementations.
     pub fn export<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         let mut file = File::create(path)?;
-        let mut b64_writer = base64::write::EncoderStringWriter::new(base64::STANDARD);
 
         file.write_all(b"-----BEGIN PRIVATE KEY-----\n")
             .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?;
 
-        b64_writer.write_all(&self.encryption).unwrap();
-        b64_writer.write_all(&self.hmac).unwrap();
-        let encoded = b64_writer.into_inner();
-        // encoded.as_bytes() is guaranteed to be ASCII, so we can index it safely
+        let mut merged_key = Vec::with_capacity(KEY_COUNT * KEY_LENGTH);
+        merged_key.extend_from_slice(&self.encryption);
+        merged_key.extend_from_slice(&self.hmac);
+        let encoded = openssl::base64::encode_block(&merged_key);
         let mut encoded = encoded.as_bytes();
 
         loop {
@@ -268,7 +267,7 @@ impl CryptoKeys {
             if state != ParseState::Complete {
                 return Err(ErrorKind::InvalidKeyfile.into());
             }
-            let decoded = base64::decode(encoded)
+            let decoded = openssl::base64::decode_block(&encoded)
                 .map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, e))?;
             if decoded.len() != KEY_COUNT * KEY_LENGTH {
                 return Err(ErrorKind::InvalidKeyfile.into());
@@ -279,8 +278,6 @@ impl CryptoKeys {
     }
 
     fn import_binary(buffer: &[u8]) -> Result<Self, Error> {
-        use std::convert::TryInto;
-
         if buffer.len() != KEY_COUNT * KEY_LENGTH {
             return ErrorKind::InvalidKeyfile.into();
         }
