@@ -174,10 +174,10 @@ impl SecretsManager {
     /// [`SecretsManager::save()`]/[`SecretsManager::save_as()`] is called.
     ///
     /// ## Panics:
-    /// If an attempt is made to load an existing vault but `key_source` is set
-    /// to [`KeySource::Csprng`] (which should only be used when
-    /// initializing a new secrets vault). In release mode, this does not panic
-    /// but the vault will invariably fail to decrypt.
+    /// In debug mode, if an attempt is made to load an existing vault but
+    /// `key_source` is set to [`KeySource::Csprng`] (which should only be
+    /// used when initializing a new secrets vault). In release mode, this does
+    /// not panic but the vault will invariably fail to decrypt.
     pub fn load<P1: AsRef<Path>>(path: P1, key_source: KeySource) -> Result<Self, Error> {
         // We intentionally only panic here in debug mode, only because we try to avoid
         // panicking in production if possible. This isn't a logic error (the code will
@@ -186,7 +186,13 @@ impl SecretsManager {
         // a newly generated key will just always fail to decrypt the store contents).
         // Tl;dr it's not unsafe or technically incorrect, just stupid.
         if matches!(key_source, KeySource::Csprng) {
-            debug_assert!(false, "It is incorrect to call SecretsManager::load() except with an existing key source!");
+            debug_assert!(
+                false,
+                concat!(
+                    "It is incorrect to call SecretsManager::load() ",
+                    "except with an existing key source!"
+                )
+            );
         }
 
         let path = path.as_ref();
