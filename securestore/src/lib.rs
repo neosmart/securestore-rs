@@ -135,7 +135,7 @@ pub struct SecretsManager {
 // to make sure that it implements them all the same for ergonomic reasons.
 const _: () = {
     // It is sufficient to declare the generic function pointers; calling them
-    // too would require using `const fn` with Send/Sync constraints wasn't
+    // too would require using `const fn` with Send/Sync constraints which wasn't
     // stabilized until rustc 1.61.0
     fn assert_send<T: Send>() {}
     let _ = assert_send::<SecretsManager>;
