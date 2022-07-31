@@ -21,7 +21,9 @@ features = [ ]
 
 [target.'cfg(windows)'.dependencies.openssl]
 version = "0.10.41"
-features = [ "vendored" ]
+# Building OpenSSL (via openssl/vendored) requires perl.exe on Windows, which
+# is less likely to be installed than OpenSSL itself.
+# features = [ "vendored" ]
 
 [features]
 # default = [ "openssl-vendored" ]
