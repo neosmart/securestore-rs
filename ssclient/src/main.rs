@@ -62,7 +62,7 @@ fn main() {
                 .value_name("STORE")
                 .help("Specify the path to the secrets store to use for all operations.")
                 .long_help(concat!(
-                    "When omitted, the standardized SecureStore vault name/path",
+                    "When omitted, the standardized SecureStore vault name/path ",
                     "of 'secrets.json' is used."
                 ))
                 .default_value("secrets.json")
@@ -108,7 +108,7 @@ fn main() {
                     "decryption key(s) derived from PASSWORD to the path ",
                     "specified by EXPORT_PATH. \n",
                     "This allows for subsequent keyless, non-interactive ",
-                    "usage via the SecureStore API while still retaining the",
+                    "usage via the SecureStore API while still retaining the ",
                     "convenience of password-based encryption/decryption ",
                     "when using ssclient at the command line."
                 )),
