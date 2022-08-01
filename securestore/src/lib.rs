@@ -102,6 +102,16 @@ pub enum KeySource<'a> {
     /// Load the keys from a keyfile on-disk. Both binary and PEM keyfiles are
     /// supported.
     Path(&'a Path),
+    /// Derive keys from the specified password.
+    ///
+    /// You most likely do not want to use this `KeySource` variant directly;
+    /// instead use [`ssclient`] with a password when managing the secrets
+    /// in the SecureStore vault at the command line, and use `ssclient` to
+    /// export a keyfile equivalent to that password to use to retrieve
+    /// passwords at runtime (via [`KeySource::Path`] or
+    /// [`KeySource::from_file()`).
+    ///
+    /// [`ssclient`]: https://neosmart.net/blog/2020/securestore-open-secrets-format/
     Password(&'a str),
     /// Automatically generate a new key file from a secure RNG, for use with
     /// [`SecretsManager::new()`] only.
@@ -157,14 +167,19 @@ impl GenericKeySource for KeySource<'_> {
 /// crate, and is an in-memory representation of an encrypted SecureStore vault.
 ///
 /// An existing plain-text SecureStore vault can be loaded with
-/// [`SecretsManager::load()`] or a new vault can be created with
-/// [`SecretsManager::new()`] and then saved to disk
-/// with [`SecretsManager::save()`] or [`SecretsManager::save_as()`].
+/// [`SecretsManager::load()`] or a new vault can be created with [`new()`] and
+/// then saved to disk with [`save()`] or [`save_as()`].
 ///
 /// Individual secrets can be set, retrieved, and removed with
-/// [`SecretsManager::set()`], [`SecretsManager::get()`], and
-/// [`SecretsManager::remove()`] respectively. The names/keys of all secrets
-/// stored in this vault can be enumerated via [`SecretsManager::keys()`].
+/// [`SecretsManager::set()`], [`get()`], and [`remove()`] respectively. The
+/// names/keys of all secrets stored in this vault can be enumerated via
+/// [`SecretsManager::keys()`].
+///
+/// [`new()`]: Self::new()
+/// [`save()`]: Self::save()
+/// [`save_as()`]: Self::save_as()
+/// [`get()`]: Self::get()
+/// [`remove()`]: Self::remove()
 pub struct SecretsManager {
     vault: Vault,
     path: Option<PathBuf>,
@@ -196,9 +211,17 @@ impl SecretsManager {
     /// Note that the usage of [`KeySource::Path`] is taken to mean that there
     /// is an existing compatible private key already available at the
     /// specified path. To generate a new key file, use [`KeySource::Csprng`]
-    /// then export the generated keys with
-    /// [`SecretsManager::export_keyfile()`].
-    pub fn new(key_source: KeySource) -> Result<Self, Error> {
+    /// then export the generated key to the desired path with
+    /// [`export_keyfile()`](Self::export_keyfile).
+    ///
+    /// Most users will likely prefer to create a new SecureStore vault and
+    /// manage its secrets by using the companion CLI utility [`ssclient`],
+    /// then [`load()`](Self::load) the SecureStore at runtime to retrieve
+    /// its secrets.
+    ///
+    /// [`ssclient`]: https://github.com/neosmart/securestore-rs/tree/master/ssclient
+    pub fn new<K: GenericKeySource>(key_source: K) -> Result<SecretsManager, Error> {
+        let key_source = key_source.key_source();
         let mut vault = Vault::new();
         let keys = key_source.extract_keys(&vault.iv)?;
         vault.sentinel = Some(Self::create_sentinel(&keys));
@@ -214,13 +237,16 @@ impl SecretsManager {
     /// the [`KeySource`] specified by the `key_source` parameter.
     ///
     /// Note that changes to the vault are not written to disk unless and until
-    /// [`SecretsManager::save()`]/[`SecretsManager::save_as()`] is called.
+    /// [`save()`] or [`save_as()`] is called.
     ///
     /// ## Panics:
     /// In debug mode, if an attempt is made to load an existing vault but
     /// `key_source` is set to [`KeySource::Csprng`] (which should only be
     /// used when initializing a new secrets vault). In release mode, this does
     /// not panic but the vault will invariably fail to decrypt.
+    ///
+    /// [`save()`]: SecretsManager::save()
+    /// [`save_as()`]: SecretsManager::save_as()
     pub fn load<P: AsRef<Path>, K: GenericKeySource>(
         path: P,
         key_source: K,
@@ -273,8 +299,10 @@ impl SecretsManager {
     ///
     /// ## Panics:
     /// If a call to `save()` is made on a `SecretsManager` initialized with
-    /// `SecretsManager::new()` rather `SecretsManager::load()`; use `save_as()`
-    /// instead.
+    /// `SecretsManager::new()` rather than opened with `load()`; use
+    /// `save_as()` instead.
+    ///
+    /// [`load()`]: Self::load()
     pub fn save(&self) -> Result<(), Error> {
         match self.path.as_ref() {
             Some(path) => self.vault.save(path),
