@@ -247,6 +247,23 @@ impl SecretsManager {
     ///
     /// [`save()`]: SecretsManager::save()
     /// [`save_as()`]: SecretsManager::save_as()
+    ///
+    /// ## Example:
+    ///
+    /// First, in the shell:
+    /// ```sh
+    /// ssclient create secrets.json --export-key secrets.key
+    /// ssclient set password mYpassWORD123
+    /// ```
+    ///
+    /// Then, in rust:
+    /// ```no_run
+    /// use securestore::SecretsManager;
+    ///
+    /// let secrets = SecretsManager::load("secrets.json", "secrets.key").unwrap();
+    /// let password = SecretsManager::get("password").unwrap();
+    /// assert_eq!(password, String::from("mYpassWORD123"));
+    /// ```
     pub fn load<P: AsRef<Path>, K: GenericKeySource>(
         path: P,
         key_source: K,

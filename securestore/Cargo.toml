@@ -30,4 +30,5 @@ version = "0.10.41"
 openssl-vendored = [ "openssl/vendored" ]
 
 [dev-dependencies]
+# `tempfile` is used in the tests to simplify cleanup
 tempfile = "3.3.0"
