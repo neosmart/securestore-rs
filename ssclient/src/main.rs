@@ -331,7 +331,7 @@ fn main() {
     let mut password;
     let keysource = if app_args.is_present("keyfile") {
         let keyfile = Path::new(app_args.value_of("keyfile").unwrap());
-        KeySource::File(keyfile)
+        KeySource::Path(keyfile)
     } else if is_tty {
         loop {
             eprint!("Password: ");
@@ -395,7 +395,7 @@ fn run(
     exclude_vcs: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (keysource, key_export_path) = match (&mode, &keysource) {
-        (Mode::Create, KeySource::File(path)) => {
+        (Mode::Create, KeySource::Path(path)) => {
             if !path.exists() || std::fs::metadata(path).unwrap().len() == 0 {
                 (KeySource::Csprng, Some(*path))
             } else {
@@ -489,7 +489,7 @@ fn run(
     if exclude_vcs {
         let vcs_exclude_path = match (mode, keysource, key_export_path) {
             // Exclude the already present/created key file
-            (Mode::Create, KeySource::File(path), _) => Some(path),
+            (Mode::Create, KeySource::Path(path), _) => Some(path),
             // Exclude the key file we just exported
             (_, _, Some(path)) => Some(path),
             // No key file to exclude

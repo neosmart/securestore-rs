@@ -67,7 +67,7 @@ fn csprng_export() {
         sman.save_as(&secrets_path).unwrap();
     }
 
-    let sman = SecretsManager::load(secrets_path, KeySource::File(key_path.as_ref())).unwrap();
+    let sman = SecretsManager::load(secrets_path, KeySource::File(key_path)).unwrap();
     assert_eq!(Ok("bar".to_owned()), sman.get("foo"));
 }
 
@@ -84,7 +84,7 @@ fn password_export() {
         sman.save_as(&secrets_path).unwrap();
     }
 
-    let sman = SecretsManager::load(secrets_path, KeySource::File(key_path.as_ref())).unwrap();
+    let sman = SecretsManager::load(secrets_path, KeySource::File(key_path)).unwrap();
     assert_eq!(Ok("bar".to_owned()), sman.get("foo"));
 }
 
@@ -92,7 +92,7 @@ fn password_export() {
 fn invalid_key_file() {
     let key_path = NamedTempFile::new().unwrap().into_temp_path();
 
-    match SecretsManager::new(KeySource::File(key_path.as_ref())) {
+    match SecretsManager::new(KeySource::File(key_path)) {
         Ok(_) => panic!("SecretsManager loaded with invalid key file!"),
         Err(e) => assert_eq!(ErrorKind::InvalidKeyfile, e.kind()),
     }
@@ -106,4 +106,27 @@ fn binary_secret() {
     sman.set(key, &value[..]);
 
     assert_eq!(&value[..], sman.get_as::<Vec<u8>>(key).unwrap().as_slice());
+}
+
+#[test]
+/// A release added generics to KeySource which were later removed because the
+/// default generic fallback doesn't work on current rust versions. This had
+/// let `KeySource::File(path: AsRef<Path>)` work, but broke `KeySource::Csprng`
+/// and `KeySource::Password` because the `P: AsRef<Path>` wasn't defined for
+/// those variants (unless it was explicitly provided, though not used).
+///
+/// `KeySource::File` was renamed to `KeySource::Path` and takes a `&Path` only,
+/// but a function masquerading as a variant called `KeySource::File()` was
+/// introduced that returns `impl GenericKeySource`, the trait which we now
+/// accept in the `new()` and `load()` functions. This function is hidden from
+/// the docs and is for backwards-compatibility only.
+fn legacy_generic_keysource() {
+    // We just want to verify that this compiles, we don't test the result here.
+    let _ = SecretsManager::load("secrets.json", KeySource::File("secrets.key"));
+}
+
+#[test]
+fn str_as_generic_keysource() {
+    // We just want to verify that this compiles, we don't test the result here.
+    let _ = SecretsManager::load("secrets.json", "secrets.key");
 }

@@ -56,7 +56,7 @@
 //! # drop (sman);
 //!
 //! let key_path = Path::new("secrets.key");
-//! let sman = SecretsManager::load("secrets.json", KeySource::File(key_path))
+//! let sman = SecretsManager::load("secrets.json", KeySource::Path(key_path))
 //!     .expect("Failed to load secrets store!");
 //! let db_password = sman.get("db_password")
 //!     .expect("Couldn't get db_password from vault!");
@@ -89,28 +89,68 @@ use std::path::{Path, PathBuf};
 /// vault from the command line (via the companion cli app/crate, `ssclient`)
 /// but then export a copy of the keys derived from that password to a keyfile
 /// and use that when accessing the vault from your code in production (as a
-/// [`KeySource::File`] variant). See [`SecretsManager::export_keyfile()`] or
+/// [`KeySource::Path`] variant). See [`SecretsManager::export_keyfile()`] or
 /// the `ssclient` documentation for more info.
 ///
 /// Note that when creating a new vault with [`KeySource::Csprng`] the generated
 /// private keys should be exported via [`SecretsManager::export_keyfile()`]
 /// before dropping the `SecretsManager` instance; the exported keyfile should
-/// then be used the next time the vault is loaded (via [`KeySource::File`]).
+/// then be used the next time the vault is loaded (via [`KeySource::Path`]).
 #[non_exhaustive]
 #[derive(Clone)]
 pub enum KeySource<'a> {
-    /// Load the keys from a binary file on-disk
-    File(&'a Path),
-    /// Derive keys from the specified password
+    /// Load the keys from a keyfile on-disk. Both binary and PEM keyfiles are
+    /// supported.
+    Path(&'a Path),
     Password(&'a str),
     /// Automatically generate a new key file from a secure RNG, for use with
     /// [`SecretsManager::new()`] only.
     ///
     /// [`SecretsManager::export_keyfile()`] should be used to export the
-    /// keys before the instance is disposed. The store can then subsequently be
-    /// loaded with a [`KeySource::File`] pointing to the file exported by
-    /// [`SecretsManager::export_keyfile()`].
+    /// keys before the `SecretsManager` instance is disposed or else the
+    /// generated key will be lost and secrets will not be decryptable. The
+    /// store should subsequently be loaded with [`KeySource::Path`] pointing to
+    /// the exported key's path.
     Csprng,
+}
+
+mod private {
+    pub trait Sealed {}
+}
+
+/// This type is used internally for generic function overload purposes. See and
+/// use [`KeySource`] instead.
+pub trait GenericKeySource: private::Sealed {
+    fn key_source<'a>(&'a self) -> KeySource<'a>;
+}
+
+impl<'a> KeySource<'a> {
+    // This is purposely named like an enum variant for backwards compatibility.
+    #[doc(hidden)]
+    #[allow(non_snake_case)]
+    pub fn File<P: AsRef<Path> + 'a>(path: P) -> impl GenericKeySource + 'a {
+        path
+    }
+
+    /// Use in lieu of `KeySource::Path` for cases where `path` implements
+    /// `AsRef<Path>` but isn't specifically a `&Path` itself.
+    pub fn from_file<P: AsRef<Path> + 'a>(path: P) -> impl GenericKeySource + 'a {
+        path
+    }
+}
+
+impl<P: AsRef<Path>> private::Sealed for P {}
+impl<P: AsRef<Path>> GenericKeySource for P {
+    fn key_source<'a>(&'a self) -> KeySource<'a> {
+        KeySource::Path(self.as_ref())
+    }
+}
+
+impl<'a> private::Sealed for KeySource<'a> {}
+impl GenericKeySource for KeySource<'_> {
+    fn key_source<'a>(&'a self) -> KeySource<'a> {
+        self.clone()
+    }
 }
 
 /// `SecretsManager` is the primary interface used for interacting with this
@@ -153,7 +193,7 @@ impl SecretsManager {
     /// Creates a new instance of `SecretsManager`, encrypting its secrets with
     /// the specified [`KeySource`].
     ///
-    /// Note that the usage of [`KeySource::File`] is taken to mean that there
+    /// Note that the usage of [`KeySource::Path`] is taken to mean that there
     /// is an existing compatible private key already available at the
     /// specified path. To generate a new key file, use [`KeySource::Csprng`]
     /// then export the generated keys with
@@ -181,7 +221,11 @@ impl SecretsManager {
     /// `key_source` is set to [`KeySource::Csprng`] (which should only be
     /// used when initializing a new secrets vault). In release mode, this does
     /// not panic but the vault will invariably fail to decrypt.
-    pub fn load<P1: AsRef<Path>>(path: P1, key_source: KeySource) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>, K: GenericKeySource>(
+        path: P,
+        key_source: K,
+    ) -> Result<SecretsManager, Error> {
+        let key_source = key_source.key_source();
         // We intentionally only panic here in debug mode, only because we try to avoid
         // panicking in production if possible. This isn't a logic error (the code will
         // still run and everything will work without any incorrect behavior) but the
@@ -333,7 +377,7 @@ impl<'a> KeySource<'a> {
 
                 CryptoKeys::import(&buffer[..])
             }
-            KeySource::File(path) => {
+            KeySource::Path(path) => {
                 let attr = std::fs::metadata(path)?;
                 if (attr.len() as usize) < (shared::KEY_COUNT * shared::KEY_LENGTH) {
                     return ErrorKind::InvalidKeyfile.into();
