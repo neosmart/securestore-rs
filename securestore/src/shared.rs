@@ -39,7 +39,10 @@ pub struct Vault {
     #[serde(serialize_with = "to_base64", deserialize_with = "iv_from_base64")]
     pub iv: [u8; IV_SIZE],
     /// An optional sentinel, used to verify that the same key/password is used
-    /// across invocations.
+    /// across invocations. To be more clear, while it is permitted for a vault
+    /// not to contain a sentinel, any SecureStore-compliant library/app must
+    /// check for and create a sentinel if it doesn't exist - i.e. this isn't an
+    /// optional part of the SecureStore spec.
     pub sentinel: Option<EncryptedBlob>,
     /// The secrets we are tasked with protecting, sorted for version control
     /// friendliness.
