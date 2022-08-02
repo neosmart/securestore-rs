@@ -430,7 +430,7 @@ fn run(
             }
         }
         eprintln!("Saving newly generated key to {}", path.display());
-        sman.export_keyfile(path)?;
+        sman.export_key(path)?;
     }
 
     match mode {

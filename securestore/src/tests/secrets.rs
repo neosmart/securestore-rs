@@ -61,7 +61,7 @@ fn csprng_export() {
 
     {
         let mut sman = SecretsManager::new(KeySource::Csprng).unwrap();
-        sman.export_keyfile(&key_path).unwrap();
+        sman.export_key(&key_path).unwrap();
 
         sman.set("foo", "bar");
         sman.save_as(&secrets_path).unwrap();
@@ -78,6 +78,7 @@ fn password_export() {
 
     {
         let mut sman = SecretsManager::new(KeySource::Password("password123")).unwrap();
+        // Use legacy .export() alias .export_keyfile() to make sure it works
         sman.export_keyfile(&key_path).unwrap();
 
         sman.set("foo", "bar");
