@@ -1,6 +1,6 @@
 [package]
 name = "ssclient"
-version = "0.99.1"
+version = "0.100.0"
 authors = ["Mahmoud Al-Qudsi <mqudsi@neosmart.net>", "NeoSmart Technologies"]
 edition = "2018"
 description = "SecureStore client for managing user secrets"
@@ -15,7 +15,7 @@ atty = "0.2.14"
 base64 = "0.13.0"
 clap = { version = "3.2.16", default-features = false, features = [ "std" ] }
 getch = "0.3.1"
-securestore = { path = "../securestore", version = "0.99.1", default-features = false }
+securestore = { path = "../securestore", version = "0.100.0", default-features = false }
 serde_json = "1.0.82"
 
 [features]
