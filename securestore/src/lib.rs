@@ -261,7 +261,7 @@ impl SecretsManager {
     /// use securestore::SecretsManager;
     ///
     /// let secrets = SecretsManager::load("secrets.json", "secrets.key").unwrap();
-    /// let password = SecretsManager::get("password").unwrap();
+    /// let password = secrets.get("password").unwrap();
     /// assert_eq!(password, String::from("mYpassWORD123"));
     /// ```
     pub fn load<P: AsRef<Path>, K: GenericKeySource>(
