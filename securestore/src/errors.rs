@@ -8,9 +8,8 @@ pub enum ErrorKind {
     /// May be caused by using the wrong key or attempting to load ciphertext
     /// that has been tampered with.
     DecryptionFailure,
-    /// The [`BinarySerializable`](crate::BinarySerializable) type converter
     /// The [`BinaryDeserializable`](crate::BinaryDeserializable) type converter
-    /// failed to convert the decrypted payload.
+    /// failed to deserialize the decrypted payload.
     DeserializationError,
     /// The requested secret was not found in the store.
     SecretNotFound,
@@ -22,7 +21,7 @@ pub enum ErrorKind {
     /// An error occurred during the (de)serialization of the secure store. This
     /// typically implies either an incorrect file was loaded as the secrets
     /// store, the file has been corrupted/truncated, or was produced by a
-    /// buggy or incompatible implementation.
+    /// buggy or incompatible SecureStore implementation.
     InvalidStore,
 }
 
