@@ -1,5 +1,8 @@
 # SecureStore for Rust
 
+[![crates.io](https://img.shields.io/crates/v/securestore.svg)](https://crates.io/crates/securestore)
+[![docs.rs](https://docs.rs/securestore/badge.svg)](https://docs.rs/crate/securestore)
+
 This repository houses [the `ssclient` command-line utility](./ssclient/) for creating and
 manipulating [SecureStore secrets
 files](http://neosmart.net/blog/2020/securestore-open-secrets-format/) as well as [the `securestore`
