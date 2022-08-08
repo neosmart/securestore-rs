@@ -209,7 +209,7 @@ edition = "2021"
 
 [dependencies]
 once_cell = "1.13.0"
-securestore = "0.99.3"
+securestore = "0.100.0"
 ```
 
 After which we can open `src/main.rs` and add some code to open the secrets file and decrypt + retrieve one or more secrets at runtime. [The ssclient documentation](https://docs.rs/securestore/latest/securestore/) covers how the `securestore` crate and its primary `SecretsManager` type are used, but we'll demo the basics below.
