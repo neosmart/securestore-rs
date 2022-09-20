@@ -629,6 +629,7 @@ fn add_path_to_ignore_file(
 
     // We treat the contents of the ignore file as UTF-8, so we can't handle
     // non-UTF-8 paths to be excluded.
+    // It should be fine to unwrap .file_name() because we've already asserted that it's a file.
     let path_file_name = match path.file_name().unwrap().to_str() {
         Some(str) => str,
         // This isn't an error because the user is perfectly allowed to use a non-Unicode path for
@@ -694,7 +695,7 @@ fn add_path_to_ignore_file(
 
     // While we support both pathed (/foo) and unpathed (foo) pre-existing rules,
     // we prefer to always write out pathed rules only.
-    // NB: ./foo is NOT correct and will not match!
+    // NB: ./foo is NOT correct (at least for git) and will not match!
     let rule = format!("/{path_file_name}\n");
     let mut writer = std::fs::OpenOptions::new()
         .append(true)
