@@ -706,7 +706,9 @@ fn add_path_to_ignore_file(
                 err
             )
         })?;
-    writer.write_all(rule.as_bytes()).map_err(|err| {
+    writer.write_all(b"# SecureStore key file ignore rule:\n")
+        .and_then(|()| writer.write_all(rule.as_bytes()))
+        .map_err(|err| {
         format!(
             "Error writing to vcs ignore file at {}: {}",
             ignore_file.display(),
