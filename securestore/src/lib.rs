@@ -180,6 +180,41 @@ pub struct SecretsManager {
     cryptokeys: CryptoKeys,
 }
 
+/// This type is used for generic function overload purposes to allow
+/// [`SecretsManager::load()`] to read from a `Read` instance or a path. You
+/// shouldn't need to use it directly.
+pub trait GenericVaultSource<'a> {
+    type Source: std::io::Read;
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    /// If the implementing type can also be reached via a `Path`, this trait
+    /// method should return the equivalent path here so that
+    /// [`SecretsManager::save()`] can work.
+    fn path(&self) -> Option<PathBuf>;
+
+    /// Creates and returns a `Read` source from the implementing type that is
+    /// used by [`SecretsManager::load()`] to load the vault from an
+    /// arbitrary type.
+    fn read(&self) -> Result<Self::Source, Self::Error>;
+}
+
+/// An implementation of [`GenericVaultSource`] for paths and path-like values,
+/// so that a path can be passed directly as the first parameter of a call to
+/// [`SecretsManager::load()`].
+impl<P: AsRef<Path>> GenericVaultSource<'_> for P {
+    type Source = File;
+    type Error = std::io::Error;
+
+    fn path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(self.as_ref()))
+    }
+
+    fn read(&self) -> Result<Self::Source, Self::Error> {
+        let path = self.as_ref();
+        File::open(path)
+    }
+}
+
 // We aren't manually implementing Send/Sync for `SecretsManager`, but we need
 // to make sure that it implements them all the same for ergonomic reasons.
 const _: () = {
@@ -258,8 +293,8 @@ impl SecretsManager {
     /// let password = secrets.get("password").unwrap();
     /// assert_eq!(password, String::from("mYpassWORD123"));
     /// ```
-    pub fn load<P: AsRef<Path>, K: GenericKeySource>(
-        path: P,
+    pub fn load<'v, V: GenericVaultSource<'v>, K: GenericKeySource>(
+        vault_source: V,
         key_source: K,
     ) -> Result<SecretsManager, Error> {
         let key_source = key_source.key_source();
@@ -279,9 +314,11 @@ impl SecretsManager {
             );
         }
 
-        let path = path.as_ref();
-
-        let mut vault = Vault::from_file(path)?;
+        let mut vault = Vault::load(
+            vault_source
+                .read()
+                .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?,
+        )?;
         let keys = key_source.extract_keys(&vault.iv)?;
 
         // The sentinel is an optional part of the spec that prevents inadvertently
@@ -295,7 +332,7 @@ impl SecretsManager {
 
         let sman = SecretsManager {
             cryptokeys: keys,
-            path: Some(PathBuf::from(path)),
+            path: vault_source.path(),
             vault,
         };
         Ok(sman)
@@ -332,7 +369,11 @@ impl SecretsManager {
     /// disk via [`save()`](Self::save()) or [`save_as()`](Self::save_as()).
     pub fn save_as<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         let path = path.as_ref();
-        let file = File::options().create(true).truncate(true).write(true).open(path)?;
+        let file = File::options()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(path)?;
         self.vault.save(file)
     }
 

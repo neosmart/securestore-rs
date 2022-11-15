@@ -629,7 +629,8 @@ fn add_path_to_ignore_file(
 
     // We treat the contents of the ignore file as UTF-8, so we can't handle
     // non-UTF-8 paths to be excluded.
-    // It should be fine to unwrap .file_name() because we've already asserted that it's a file.
+    // It should be fine to unwrap .file_name() because we've already asserted that
+    // it's a file.
     let path_file_name = match path.file_name().unwrap().to_str() {
         Some(str) => str,
         // This isn't an error because the user is perfectly allowed to use a non-Unicode path for
@@ -707,15 +708,16 @@ fn add_path_to_ignore_file(
                 err
             )
         })?;
-    writer.write_all(b"# SecureStore key file ignore rule:\n")
+    writer
+        .write_all(b"# SecureStore key file ignore rule:\n")
         .and_then(|()| writer.write_all(rule.as_bytes()))
         .map_err(|err| {
-        format!(
-            "Error writing to vcs ignore file at {}: {}",
-            ignore_file.display(),
-            err
-        )
-    })?;
+            format!(
+                "Error writing to vcs ignore file at {}: {}",
+                ignore_file.display(),
+                err
+            )
+        })?;
 
     eprintln!(
         "Excluding key file in {ignore_file_status} VCS ignore file {}",
