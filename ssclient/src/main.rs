@@ -417,9 +417,9 @@ fn run(
                     std::process::exit(EEXIST);
                 }
             }
-            SecretsManager::new(keysource.clone())?
+            SecretsManager::new(&keysource)?
         }
-        _ => SecretsManager::load(store_path, keysource.clone())?,
+        _ => SecretsManager::load(store_path, &keysource)?,
     };
 
     if let Some(path) = key_export_path {

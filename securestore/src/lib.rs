@@ -102,6 +102,11 @@ pub enum KeySource<'a> {
     /// Load the keys from a keyfile on-disk. Both binary and PEM keyfiles are
     /// supported.
     Path(&'a Path),
+
+    /// Load the keys from the provided buffer. Both binary and PEM key formats
+    /// are supported.
+    Buffer(&'a [u8]),
+
     /// Derive keys from the specified password.
     ///
     /// You most likely do not want to use this `KeySource` variant directly;
@@ -113,6 +118,7 @@ pub enum KeySource<'a> {
     ///
     /// [`ssclient`]: https://neosmart.net/blog/2020/securestore-open-secrets-format/
     Password(&'a str),
+
     /// Automatically generate a new key file from a secure RNG, for use with
     /// [`SecretsManager::new()`] only.
     ///
@@ -127,33 +133,44 @@ pub enum KeySource<'a> {
 /// This type is used internally for generic function overload purposes. See and
 /// use [`KeySource`] instead.
 pub trait GenericKeySource {
-    fn key_source<'a>(&'a self) -> KeySource<'a>;
+    fn key_source(&self) -> KeySource;
 }
 
 impl<'a> KeySource<'a> {
     // This is purposely named like an enum variant for backwards compatibility.
     #[doc(hidden)]
     #[allow(non_snake_case)]
-    pub fn File<P: AsRef<Path> + 'a>(path: P) -> impl GenericKeySource + 'a {
+    pub fn File<P: AsRef<Path>>(path: P) -> impl GenericKeySource {
         path
     }
 
     /// Use in lieu of `KeySource::Path` for cases where `path` implements
     /// `AsRef<Path>` but isn't specifically a `&Path` itself.
-    pub fn from_file<P: AsRef<Path> + 'a>(path: P) -> impl GenericKeySource + 'a {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> impl GenericKeySource {
         path
     }
 }
 
 impl<P: AsRef<Path>> GenericKeySource for P {
-    fn key_source<'a>(&'a self) -> KeySource<'a> {
+    fn key_source(&self) -> KeySource {
         KeySource::Path(self.as_ref())
     }
 }
 
-impl GenericKeySource for KeySource<'_> {
-    fn key_source<'a>(&'a self) -> KeySource<'a> {
-        self.clone()
+impl<'a> GenericKeySource for KeySource<'_> {
+    fn key_source(&self) -> KeySource {
+        match self {
+            Self::Csprng => KeySource::Csprng,
+            Self::Path(p) => KeySource::Path(p),
+            Self::Buffer(b) => KeySource::Buffer(*b),
+            Self::Password(p) => KeySource::Password(p),
+        }
+    }
+}
+
+impl GenericKeySource for &KeySource<'_> {
+    fn key_source(&self) -> KeySource {
+        (*self).key_source()
     }
 }
 
@@ -500,7 +517,10 @@ impl<'a> KeySource<'a> {
                 }
 
                 let file = File::open(path)?;
-                CryptoKeys::import(&file)
+                CryptoKeys::import(file)
+            }
+            KeySource::Buffer(buf) => {
+                CryptoKeys::import(&buf[..])
             }
             KeySource::Password(password) => {
                 use openssl::pkcs5::pbkdf2_hmac;
