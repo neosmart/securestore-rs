@@ -130,6 +130,7 @@ impl Vault {
         Ok(vault)
     }
 
+    #[allow(unused)]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let path = path.as_ref();
         let file = File::open(path)?;
@@ -143,13 +144,10 @@ impl Vault {
         Self::validate(vault)
     }
 
-    pub fn save<P: AsRef<Path>>(&self, dest: P) -> Result<(), Error> {
-        let path = dest.as_ref();
-
-        let file = File::create(path)?;
+    pub fn save<W: Write>(&self, dest: W) -> Result<(), Error> {
         // Using `to_writer_pretty()` makes changes to the store play nicer
         // with version control and plain-text diffing.
-        serde_json::to_writer_pretty(file, &self)?;
+        serde_json::to_writer_pretty(dest, &self)?;
         Ok(())
     }
 }

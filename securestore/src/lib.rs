@@ -316,7 +316,7 @@ impl SecretsManager {
     /// [`load()`]: Self::load()
     pub fn save(&self) -> Result<(), Error> {
         match self.path.as_ref() {
-            Some(path) => self.vault.save(path),
+            Some(path) => self.save_as(path),
             None => panic!(concat!(
                 "Cannot call save() on a newly-created store without a path. ",
                 "Use SecretsManager::save_as(&path) instead!"
@@ -331,7 +331,9 @@ impl SecretsManager {
     /// vault are transient and will be lost unlesss they are flushed to
     /// disk via [`save()`](Self::save()) or [`save_as()`](Self::save_as()).
     pub fn save_as<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
-        self.vault.save(path.as_ref())
+        let path = path.as_ref();
+        let file = File::options().create(true).truncate(true).write(true).open(path)?;
+        self.vault.save(file)
     }
 
     /// Exports the private key(s) resident in memory to a path on-disk. Note
