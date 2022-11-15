@@ -207,7 +207,9 @@ pub trait GenericVaultSource<'a> {
     /// If the implementing type can also be reached via a `Path`, this trait
     /// method should return the equivalent path here so that
     /// [`SecretsManager::save()`] can work.
-    fn path(&self) -> Option<PathBuf>;
+    fn path(&self) -> Option<PathBuf> {
+        None
+    }
 
     /// Creates and returns a `Read` source from the implementing type that is
     /// used by [`SecretsManager::load()`] to load the vault from an

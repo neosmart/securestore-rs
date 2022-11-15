@@ -1,5 +1,5 @@
-use crate::*;
 use crate::shared::*;
+use crate::*;
 use openssl::rand;
 use std::io::Read;
 use tempfile::NamedTempFile;
