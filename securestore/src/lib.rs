@@ -212,7 +212,7 @@ pub trait GenericVaultSource<'a> {
     /// Creates and returns a `Read` source from the implementing type that is
     /// used by [`SecretsManager::load()`] to load the vault from an
     /// arbitrary type.
-    fn read(&self) -> Result<Self::Source, Self::Error>;
+    fn as_read(&'a self) -> Result<Self::Source, Self::Error>;
 }
 
 /// An implementation of [`GenericVaultSource`] for paths and path-like values,
@@ -226,7 +226,7 @@ impl<P: AsRef<Path>> GenericVaultSource<'_> for P {
         Some(PathBuf::from(self.as_ref()))
     }
 
-    fn read(&self) -> Result<Self::Source, Self::Error> {
+    fn as_read(&self) -> Result<Self::Source, Self::Error> {
         let path = self.as_ref();
         File::open(path)
     }
@@ -310,10 +310,13 @@ impl SecretsManager {
     /// let password = secrets.get("password").unwrap();
     /// assert_eq!(password, String::from("mYpassWORD123"));
     /// ```
-    pub fn load<'v, V: GenericVaultSource<'v>, K: GenericKeySource>(
+    pub fn load<V, K: GenericKeySource>(
         vault_source: V,
         key_source: K,
-    ) -> Result<SecretsManager, Error> {
+    ) -> Result<SecretsManager, Error>
+    where
+        for<'v> V: GenericVaultSource<'v>,
+    {
         let key_source = key_source.key_source();
         // We intentionally only panic here in debug mode, only because we try to avoid
         // panicking in production if possible. This isn't a logic error (the code will
@@ -333,7 +336,7 @@ impl SecretsManager {
 
         let mut vault = Vault::load(
             vault_source
-                .read()
+                .as_read()
                 .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?,
         )?;
         let keys = key_source.extract_keys(&vault.iv)?;
@@ -519,9 +522,7 @@ impl<'a> KeySource<'a> {
                 let file = File::open(path)?;
                 CryptoKeys::import(file)
             }
-            KeySource::Buffer(buf) => {
-                CryptoKeys::import(&buf[..])
-            }
+            KeySource::Buffer(buf) => CryptoKeys::import(&buf[..]),
             KeySource::Password(password) => {
                 use openssl::pkcs5::pbkdf2_hmac;
 

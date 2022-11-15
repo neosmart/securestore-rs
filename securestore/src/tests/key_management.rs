@@ -1,6 +1,8 @@
-use crate::shared::*;
 use crate::*;
+use crate::shared::*;
 use openssl::rand;
+use std::io::Read;
+use tempfile::NamedTempFile;
 
 /// Verifies that exporting keys derived from a password results in keys
 /// dependent on the IV.
@@ -25,4 +27,27 @@ fn key_derivation_iv() {
         derived1, derived3,
         "Two keys derived from the same password but different IVs should differ"
     );
+}
+
+/// Validates that [`KeySource::Buffer`] can be used to read a secret out of a
+/// file.
+#[test]
+fn buffer_key_source() {
+    let vault = NamedTempFile::new().unwrap().into_temp_path();
+    let keyfile = NamedTempFile::new().unwrap().into_temp_path();
+
+    // Create a vault, write to it, and export it and its keys
+    let mut sman = SecretsManager::new(KeySource::Csprng).unwrap();
+    sman.set("foo", "bar");
+    sman.export_key(&keyfile).unwrap();
+    sman.save_as(&vault).unwrap();
+
+    let mut buffer = Vec::new();
+    File::open(keyfile)
+        .unwrap()
+        .read_to_end(&mut buffer)
+        .unwrap();
+    let keysource = KeySource::Buffer(&buffer);
+    let sman = SecretsManager::load(&vault, keysource).expect("Failed to load keys from buffer!");
+    assert_eq!(&sman.get_as::<Vec<u8>>("foo").unwrap(), b"bar");
 }
