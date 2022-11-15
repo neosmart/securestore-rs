@@ -124,13 +124,9 @@ pub enum KeySource<'a> {
     Csprng,
 }
 
-mod private {
-    pub trait Sealed {}
-}
-
 /// This type is used internally for generic function overload purposes. See and
 /// use [`KeySource`] instead.
-pub trait GenericKeySource: private::Sealed {
+pub trait GenericKeySource {
     fn key_source<'a>(&'a self) -> KeySource<'a>;
 }
 
@@ -149,14 +145,12 @@ impl<'a> KeySource<'a> {
     }
 }
 
-impl<P: AsRef<Path>> private::Sealed for P {}
 impl<P: AsRef<Path>> GenericKeySource for P {
     fn key_source<'a>(&'a self) -> KeySource<'a> {
         KeySource::Path(self.as_ref())
     }
 }
 
-impl<'a> private::Sealed for KeySource<'a> {}
 impl GenericKeySource for KeySource<'_> {
     fn key_source<'a>(&'a self) -> KeySource<'a> {
         self.clone()
