@@ -133,12 +133,12 @@ impl Vault {
     #[allow(unused)]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let path = path.as_ref();
-        let file = File::open(path)?;
+        let mut file = File::open(path)?;
 
-        Self::load(file)
+        Self::load(&mut file)
     }
 
-    pub fn load<R: Read>(source: R) -> Result<Self, Error> {
+    pub fn load<'a, R: Read>(source: &'a mut R) -> Result<Self, Error> {
         let vault = serde_json::from_reader(source)?;
 
         Self::validate(vault)

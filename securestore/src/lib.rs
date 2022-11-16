@@ -197,43 +197,6 @@ pub struct SecretsManager {
     cryptokeys: CryptoKeys,
 }
 
-/// This type is used for generic function overload purposes to allow
-/// [`SecretsManager::load()`] to read from a `Read` instance or a path. You
-/// shouldn't need to use it directly.
-pub trait GenericVaultSource<'a> {
-    type Source: std::io::Read;
-    type Error: std::error::Error + Send + Sync + 'static;
-
-    /// If the implementing type can also be reached via a `Path`, this trait
-    /// method should return the equivalent path here so that
-    /// [`SecretsManager::save()`] can work.
-    fn path(&self) -> Option<PathBuf> {
-        None
-    }
-
-    /// Creates and returns a `Read` source from the implementing type that is
-    /// used by [`SecretsManager::load()`] to load the vault from an
-    /// arbitrary type.
-    fn as_read(&'a self) -> Result<Self::Source, Self::Error>;
-}
-
-/// An implementation of [`GenericVaultSource`] for paths and path-like values,
-/// so that a path can be passed directly as the first parameter of a call to
-/// [`SecretsManager::load()`].
-impl<P: AsRef<Path>> GenericVaultSource<'_> for P {
-    type Source = File;
-    type Error = std::io::Error;
-
-    fn path(&self) -> Option<PathBuf> {
-        Some(PathBuf::from(self.as_ref()))
-    }
-
-    fn as_read(&self) -> Result<Self::Source, Self::Error> {
-        let path = self.as_ref();
-        File::open(path)
-    }
-}
-
 // We aren't manually implementing Send/Sync for `SecretsManager`, but we need
 // to make sure that it implements them all the same for ergonomic reasons.
 const _: () = {
@@ -312,13 +275,24 @@ impl SecretsManager {
     /// let password = secrets.get("password").unwrap();
     /// assert_eq!(password, String::from("mYpassWORD123"));
     /// ```
-    pub fn load<V, K: GenericKeySource>(
-        vault_source: V,
+    pub fn load<'a, P: AsRef<Path> + 'a, K: GenericKeySource>(
+        path: P,
         key_source: K,
-    ) -> Result<SecretsManager, Error>
-    where
-        for<'v> V: GenericVaultSource<'v>,
-    {
+    ) -> Result<SecretsManager, Error> {
+        let path = path.as_ref();
+        let file = File::open(path)?;
+        let mut sman = Self::load_from(file, key_source)?;
+        sman.path = Some(PathBuf::from(path));
+        Ok(sman)
+    }
+
+    /// Load a `SecretsManager` from a `Read` source instead of a path.
+    ///
+    /// See [`SecretsManager::load()`] for more information.
+    pub fn load_from<R: std::io::Read, K: GenericKeySource>(
+        mut vault_source: R,
+        key_source: K,
+    ) -> Result<SecretsManager, Error> {
         let key_source = key_source.key_source();
         // We intentionally only panic here in debug mode, only because we try to avoid
         // panicking in production if possible. This isn't a logic error (the code will
@@ -336,11 +310,7 @@ impl SecretsManager {
             );
         }
 
-        let mut vault = Vault::load(
-            vault_source
-                .as_read()
-                .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?,
-        )?;
+        let mut vault = Vault::load(&mut vault_source)?;
         let keys = key_source.extract_keys(&vault.iv)?;
 
         // The sentinel is an optional part of the spec that prevents inadvertently
@@ -354,7 +324,7 @@ impl SecretsManager {
 
         let sman = SecretsManager {
             cryptokeys: keys,
-            path: vault_source.path(),
+            path: None,
             vault,
         };
         Ok(sman)
