@@ -4,7 +4,7 @@ mod client_tests;
 use clap::builder::PossibleValue;
 use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, Command };
-use clap::{command, crate_authors, crate_version};
+use clap::crate_version;
 use base64::{Engine as _, engine::general_purpose};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
@@ -505,7 +505,9 @@ fn run(
         Mode::Delete(key) => sman.remove(key)?,
     }
 
-    sman.save_as(store_path)?;
+    if let Mode::Get(_,_) = mode {} else {
+        sman.save_as(store_path)?; 
+    }
 
     if exclude_vcs {
         let vcs_exclude_path = match (mode, keysource, key_export_path) {
