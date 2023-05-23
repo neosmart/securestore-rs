@@ -46,7 +46,8 @@ enum VcsType {
     Git,
 }
 
-fn cmd() -> Command {
+fn cmd(is_tty: bool) -> Command {
+ 
     Command::new("SecureStore")
     .version(crate_version!())
     .author(crate_authors!("\n")
@@ -75,7 +76,7 @@ fn cmd() -> Command {
             .short('p')
             .long("password")
             .value_name("PASSWORD")
-//                .takes_value(!is_tty)
+            .action( if is_tty == true { ArgAction::Set} else {ArgAction::SetTrue})
             .conflicts_with("keyfile")
             .help(concat!(
                 "Prompt for password used to derive key. \n",
@@ -272,7 +273,7 @@ fn cmd() -> Command {
 
 fn main() {
     let is_tty = atty::is(atty::Stream::Stdin);
-    let mut args = cmd(); 
+    let mut args = cmd(is_tty); 
 
     let app_args = args.get_matches_mut();
     let subcommand = match app_args.subcommand_name() {
@@ -741,5 +742,7 @@ fn add_path_to_ignore_file(
 
 #[test]
 fn verify_clap_command() {
-    cmd().debug_assert();
+    let is_tty = atty::is(atty::Stream::Stdin);
+
+    cmd(is_tty).debug_assert();
 }
