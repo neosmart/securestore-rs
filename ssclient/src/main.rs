@@ -4,7 +4,7 @@ mod client_tests;
 use clap::builder::PossibleValue;
 use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, Command };
-use clap::{crate_authors, crate_version};
+use clap::{command, crate_authors, crate_version};
 use base64::{Engine as _, engine::general_purpose};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
@@ -49,8 +49,17 @@ enum VcsType {
 fn cmd(is_tty: bool) -> Command {
  
     Command::new("SecureStore")
+    .help_template("\
+    {before-help}{name} {version}
+    {author-with-newline}{about-with-newline}
+    {usage-heading} {usage}
+    
+    {all-args}{after-help}
+    ")
     .version(crate_version!())
-    .author(crate_authors!("\n")
+    .author(
+        "Copyright NeoSmart Technologies 2018-2022.\n\
+        Developed by Mahmoud Al-Qudsi and SecureStore contributors"
     )
     .about(
         "Create and manage encrypted secrets stores.\n\
