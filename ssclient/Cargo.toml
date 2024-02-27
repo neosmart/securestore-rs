@@ -12,7 +12,7 @@ repository = "https://github.com/neosmart/securestore-rs/tree/master/securestore
 
 [dependencies]
 atty = "0.2.14"
-base64 = "0.13.0"
+radix64 = "0.6.2"
 clap = { version = "3.2.16", default-features = false, features = [ "std" ] }
 getch = "0.3.1"
 securestore = { path = "../securestore", version = "0.100.0", default-features = false }

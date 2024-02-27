@@ -380,7 +380,7 @@ fn get_secret(sman: &SecretsManager, name: &str) -> Result<String, securestore::
         Ok(secret) => Ok(secret),
         Err(e) if matches!(e.kind(), securestore::ErrorKind::DeserializationError) => {
             let bytes = sman.get_as::<Vec<u8>>(name)?;
-            let encoded = base64::encode(bytes);
+            let encoded = radix64::STD.encode(&bytes);
             Ok(format!("base64:{encoded}"))
         }
         Err(e) => Err(e)?,
@@ -609,8 +609,8 @@ fn add_path_to_ignore_file(
     path: &Path,
 ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     use std::fs::File;
+    use std::io::BufReader;
     use std::io::prelude::*;
-    use std::io::{BufRead, BufReader};
 
     // Currently, only ignore files that are in the same dir as the path to be
     // ignored are supported; this drastically simplifies both checking whether

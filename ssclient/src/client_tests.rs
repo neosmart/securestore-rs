@@ -5,7 +5,7 @@ pub fn binary_decode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut sman = SecretsManager::new(KeySource::Csprng)?;
 
     let secret_base64 = "Gl8WuHef7yWq7mRL/vLvrQ==";
-    let secret = base64::decode(&secret_base64)?;
+    let secret = radix64::STD.decode(&secret_base64)?;
 
     // Verify that the chosen secret isn't a valid UTF-8 string
     if let Ok(_) = String::from_utf8(secret.clone()) {

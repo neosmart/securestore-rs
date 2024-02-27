@@ -4,6 +4,7 @@
 use crate::errors::{Error, ErrorKind};
 use openssl::hash::MessageDigest;
 use openssl::rand;
+use radix64::STD as BASE64;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -66,7 +67,7 @@ where
     T: AsRef<[u8]>,
     S: Serializer,
 {
-    serializer.serialize_str(&base64::encode(value.as_ref()))
+    serializer.serialize_str(&BASE64.encode(value.as_ref()))
 }
 
 fn iv_from_base64<'de, D>(deserializer: D) -> Result<[u8; IV_SIZE], D::Error>
@@ -80,7 +81,7 @@ where
     let b64: String = Deserialize::deserialize(deserializer)?;
 
     let mut result = [0u8; IV_SIZE];
-    base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
+    BASE64.decode_slice(&b64, &mut result)
         .map_err(|e| Error::custom(e.to_string()))?;
 
     Ok(result)
@@ -94,7 +95,7 @@ where
     let b64: String = Deserialize::deserialize(deserializer)?;
 
     let mut result = [0u8; HMAC_SIZE];
-    base64::decode_config_slice(&b64, base64::STANDARD, &mut result)
+    BASE64.decode_slice(&b64, &mut result)
         .map_err(|e| Error::custom(e.to_string()))?;
 
     Ok(result)
@@ -106,7 +107,7 @@ where
 {
     use serde::de::Error;
     let s: String = Deserialize::deserialize(deserializer)?;
-    base64::decode(&s).map_err(|e| Error::custom(e.to_string()))
+    BASE64.decode(&s).map_err(|e| Error::custom(e.to_string()))
 }
 
 impl Vault {
@@ -173,14 +174,14 @@ impl CryptoKeys {
     /// implementations.
     pub fn export<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         let mut file = File::create(path)?;
-        let mut b64_writer = base64::write::EncoderStringWriter::new(base64::STANDARD);
 
         file.write_all(b"-----BEGIN PRIVATE KEY-----\n")
             .map_err(|e| Error::from_inner(ErrorKind::IoError, e))?;
 
-        b64_writer.write_all(&self.encryption).unwrap();
-        b64_writer.write_all(&self.hmac).unwrap();
-        let encoded = b64_writer.into_inner();
+        let mut data = [0u8; KEY_LENGTH * 2];
+        data[0..KEY_LENGTH].copy_from_slice(&self.encryption);
+        data[KEY_LENGTH..].copy_from_slice(&self.hmac);
+        let encoded = BASE64.encode(&data);
         // encoded.as_bytes() is guaranteed to be ASCII, so we can index it safely
         let mut encoded = encoded.as_bytes();
 
@@ -269,7 +270,7 @@ impl CryptoKeys {
             if state != ParseState::Complete {
                 return Err(ErrorKind::InvalidKeyfile.into());
             }
-            let decoded = base64::decode(encoded)
+            let decoded = BASE64.decode(&encoded)
                 .map_err(|e| Error::from_inner(ErrorKind::InvalidKeyfile, e))?;
             if decoded.len() != KEY_COUNT * KEY_LENGTH {
                 return Err(ErrorKind::InvalidKeyfile.into());
