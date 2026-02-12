@@ -1,5 +1,5 @@
+use crate::crypto::rand_bytes;
 use crate::shared::*;
-use openssl::rand;
 
 #[cfg(test)]
 impl Default for CryptoKeys {
@@ -7,8 +7,8 @@ impl Default for CryptoKeys {
         let mut encryption_key = [0u8; KEY_LENGTH];
         let mut hmac_key = [0u8; KEY_LENGTH];
 
-        rand::rand_bytes(&mut encryption_key).unwrap();
-        rand::rand_bytes(&mut hmac_key).unwrap();
+        rand_bytes(&mut encryption_key);
+        rand_bytes(&mut hmac_key);
 
         CryptoKeys {
             encryption: encryption_key,

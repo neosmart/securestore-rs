@@ -1,9 +1,10 @@
 //! This (private) module contains code that must line up between the various
 //! implementations of SecureStore in different languages.
 
+use crate::crypto::{
+    aes_128_cbc_decrypt, aes_128_cbc_encrypt, constant_time_eq, hmac_sha1, rand_bytes,
+};
 use crate::errors::{Error, ErrorKind};
-use openssl::hash::MessageDigest;
-use openssl::rand;
 use radix64::STD as BASE64;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
@@ -18,11 +19,9 @@ pub const KEY_LENGTH: usize = 128 / 8;
 /// The number of rounds used for PBKDF2 key derivation. The resulting key is
 /// still considered to be a secret and is not stored!
 pub const PBKDF2_ROUNDS: usize = 256_000;
-/// The hash function used for PBKDF2, but only when password-based encryption/
-/// decryption is used. CSPRNG-derived symmetric keys are intentionally not
-/// stretched as their entropy may be constrained by the PBKDF2 digest, (at
-/// the cost of being vulnerable to a weekly seeded or compromised CSPRNG).
-pub const PBKDF2_DIGEST: fn() -> MessageDigest = MessageDigest::sha1;
+/// The hash function used for PBKDF2 is SHA1 (fixed by the SecureStore format).
+/// CSPRNG-derived symmetric keys are intentionally not stretched as their
+/// entropy may be constrained by the PBKDF2 digest.
 /// The size of an initialization vector in bytes
 pub const IV_SIZE: usize = KEY_LENGTH;
 /// The latest version of the vault schema
@@ -115,7 +114,7 @@ where
 impl Vault {
     pub fn new() -> Self {
         let mut iv = [0u8; IV_SIZE];
-        rand::rand_bytes(&mut iv).expect("IV generation failure!");
+        rand_bytes(&mut iv);
 
         Vault {
             version: SCHEMA_VERSION,
@@ -297,21 +296,13 @@ impl CryptoKeys {
     }
 }
 
-use openssl::pkey::PKey;
-use openssl::sign::Signer;
-use openssl::symm::{self, Cipher};
-
 impl EncryptedBlob {
     /// Creates an `EncryptedBlob` from a plaintext secret.
     pub fn encrypt<'a>(keys: &CryptoKeys, secret: &'a [u8]) -> EncryptedBlob {
-        let cipher = Cipher::aes_128_cbc();
         let mut iv = [0u8; KEY_LENGTH];
+        rand_bytes(&mut iv);
 
-        rand::rand_bytes(&mut iv).expect("Error reading IV bytes from RNG!");
-
-        // Unlike with decryption, we don't expect this to ever fail
-        let payload = symm::encrypt(cipher, &keys.encryption, Some(&iv), secret)
-            .expect("Error encrypting payload!");
+        let payload = aes_128_cbc_encrypt(&keys.encryption, &iv, secret);
 
         EncryptedBlob {
             hmac: Self::calculate_hmac(&keys.hmac, &iv, &payload),
@@ -327,36 +318,23 @@ impl EncryptedBlob {
             return ErrorKind::DecryptionFailure.into();
         }
 
-        let cipher = Cipher::aes_128_cbc();
-        let result = symm::decrypt(cipher, &keys.encryption, Some(&self.iv), &self.payload)?;
-
-        Ok(result)
+        aes_128_cbc_decrypt(&keys.encryption, &self.iv, &self.payload)
     }
 
     fn calculate_hmac(
-        &hmac_key: &[u8; KEY_LENGTH],
-        &iv: &[u8; IV_SIZE],
+        hmac_key: &[u8; KEY_LENGTH],
+        iv: &[u8; IV_SIZE],
         encrypted: &[u8],
     ) -> [u8; HMAC_SIZE] {
-        let key = PKey::hmac(&hmac_key).expect("Failed to load HMAC encryption key!");
-        let mut signer =
-            Signer::new(MessageDigest::sha1(), &key).expect("Failed to create HMAC signer!");
-
-        signer.update(&iv).unwrap();
-        signer.update(&encrypted).unwrap();
-
-        let mut hmac = [0u8; HMAC_SIZE];
-        signer
-            .sign(&mut hmac)
-            // NB: this is not the same as the HMAC not matching
-            .expect("Failed to create HMAC signature!");
-
-        hmac
+        let mut data = Vec::with_capacity(iv.len() + encrypted.len());
+        data.extend_from_slice(iv);
+        data.extend_from_slice(encrypted);
+        hmac_sha1(hmac_key, &data)
     }
 
     /// Authenticates the encrypted payload against the provided HMAC key
-    pub fn authenticate(&self, &hmac_key: &[u8; KEY_LENGTH]) -> bool {
-        let hmac = Self::calculate_hmac(&hmac_key, &self.iv, &self.payload);
-        openssl::memcmp::eq(&hmac, &self.hmac)
+    pub fn authenticate(&self, hmac_key: &[u8; KEY_LENGTH]) -> bool {
+        let hmac = Self::calculate_hmac(hmac_key, &self.iv, &self.payload);
+        constant_time_eq(&hmac, &self.hmac)
     }
 }

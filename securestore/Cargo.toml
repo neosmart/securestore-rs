@@ -15,19 +15,47 @@ radix64 = "0.6.2"
 serde = { version = "1.0.197", features = [ "derive" ] }
 serde_json = "1.0.114"
 
-[target.'cfg(not(windows))'.dependencies.openssl]
-version = "0.10.64"
-features = [ ]
+[target.'cfg(not(windows))'.dependencies]
+openssl = { version = "0.10.64", optional = true }
 
-[target.'cfg(windows)'.dependencies.openssl]
-version = "0.10.64"
+[target.'cfg(windows)'.dependencies]
 # Building OpenSSL (via openssl/vendored) requires perl.exe on Windows, which
 # is less likely to be installed than OpenSSL itself.
-# features = [ "vendored" ]
+openssl = { version = "0.10.64", optional = true }
+
+[dependencies.getrandom]
+version = "0.2"
+optional = true
+
+[dependencies.aes]
+version = "0.8"
+optional = true
+
+[dependencies.cbc]
+version = "0.1"
+optional = true
+
+[dependencies.hmac]
+version = "0.12"
+optional = true
+
+[dependencies.sha1]
+version = "0.10"
+optional = true
+
+[dependencies.pbkdf2]
+version = "0.12"
+optional = true
+
+[dependencies.subtle]
+version = "2.5"
+optional = true
 
 [features]
-# default = [ "openssl-vendored" ]
+default = [ "openssl" ]
+openssl = [ "dep:openssl" ]
 openssl-vendored = [ "openssl/vendored" ]
+rustls = [ "dep:getrandom", "dep:aes", "dep:cbc", "dep:hmac", "dep:sha1", "dep:pbkdf2", "dep:subtle" ]
 
 [dev-dependencies]
 # `tempfile` is used in the tests to simplify cleanup

@@ -1,3 +1,4 @@
+use crate::crypto::rand_bytes;
 use crate::shared::*;
 use crate::*;
 use std::io::Read;
@@ -8,10 +9,10 @@ use tempfile::NamedTempFile;
 #[test]
 fn key_derivation_iv() {
     let mut iv1 = [0u8; IV_SIZE];
-    rand::rand_bytes(&mut iv1).unwrap();
+    rand_bytes(&mut iv1);
 
     let mut iv2 = [0u8; IV_SIZE];
-    rand::rand_bytes(&mut iv2).unwrap();
+    rand_bytes(&mut iv2);
 
     let derived1 = KeySource::Password("foo").extract_keys(&iv1).unwrap();
     let derived2 = KeySource::Password("foo").extract_keys(&iv1).unwrap();
