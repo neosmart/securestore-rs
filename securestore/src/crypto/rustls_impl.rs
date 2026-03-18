@@ -51,12 +51,5 @@ pub fn pbkdf2_hmac_sha1(password: &[u8], salt: &[u8], rounds: u32, out: &mut [u8
 }
 
 pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut eq = subtle::Choice::from(1u8);
-    for (x, y) in a.iter().zip(b.iter()) {
-        eq = eq & x.ct_eq(y);
-    }
-    eq.into()
+    a.ct_eq(b).into()
 }
