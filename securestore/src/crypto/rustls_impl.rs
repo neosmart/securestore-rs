@@ -33,7 +33,9 @@ pub fn aes_128_cbc_decrypt(
     let pt = Aes128CbcDec::new(key.into(), iv.into())
         .decrypt_padded_b2b_mut::<Pkcs7>(ciphertext, &mut buf)
         .map_err(|_| ErrorKind::DecryptionFailure)?;
-    Ok(pt.to_vec())
+    let pt_len = pt.len();
+    buf.truncate(pt_len);
+    Ok(buf)
 }
 
 pub fn hmac_sha1(key: &[u8; 16], chunks: &[&[u8]]) -> [u8; 20] {
