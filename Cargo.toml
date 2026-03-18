@@ -4,3 +4,7 @@ members = [
 	"securestore",
 	"ssclient",
 ]
+
+# native rust pbkdf2/crypto are very slow w/out optimizations
+[profile.dev.package."*"]
+opt-level = 2
