@@ -26,11 +26,13 @@ pub fn aes_128_cbc_decrypt(
     symm::decrypt(cipher, key, Some(iv), ciphertext).map_err(Error::from)
 }
 
-pub fn hmac_sha1(key: &[u8; 16], data: &[u8]) -> [u8; 20] {
+pub fn hmac_sha1(key: &[u8; 16], chunks: &[&[u8]]) -> [u8; 20] {
     let pkey = PKey::hmac(key).expect("Failed to load HMAC key");
     let mut signer =
         Signer::new(MessageDigest::sha1(), &pkey).expect("Failed to create HMAC signer");
-    signer.update(data).expect("HMAC update failed");
+    for &chunk in chunks {
+        signer.update(chunk).expect("HMAC update failed");
+    }
     let mut out = [0u8; 20];
     let n = signer.sign(&mut out).expect("HMAC sign failed");
     assert_eq!(n, 20);

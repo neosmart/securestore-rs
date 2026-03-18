@@ -326,10 +326,7 @@ impl EncryptedBlob {
         iv: &[u8; IV_SIZE],
         encrypted: &[u8],
     ) -> [u8; HMAC_SIZE] {
-        let mut data = Vec::with_capacity(iv.len() + encrypted.len());
-        data.extend_from_slice(iv);
-        data.extend_from_slice(encrypted);
-        hmac_sha1(hmac_key, &data)
+        hmac_sha1(hmac_key, &[iv, encrypted])
     }
 
     /// Authenticates the encrypted payload against the provided HMAC key

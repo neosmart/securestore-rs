@@ -36,9 +36,12 @@ pub fn aes_128_cbc_decrypt(
     Ok(pt.to_vec())
 }
 
-pub fn hmac_sha1(key: &[u8; 16], data: &[u8]) -> [u8; 20] {
-    let mut mac = hmac::Hmac::<Sha1>::new_from_slice(key).expect("HMAC key size");
-    mac.update(data);
+pub fn hmac_sha1(key: &[u8; 16], chunks: &[&[u8]]) -> [u8; 20] {
+    let mut mac =
+        hmac::Hmac::<Sha1>::new_from_slice(key).expect("Failed to init HMAC with provided key");
+    for &chunk in chunks {
+        mac.update(chunk);
+    }
     let result = mac.finalize();
     result.into_bytes().into()
 }
