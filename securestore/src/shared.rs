@@ -18,10 +18,9 @@ pub const KEY_COUNT: usize = 2;
 pub const KEY_LENGTH: usize = 128 / 8;
 /// The number of rounds used for PBKDF2 key derivation. The resulting key is
 /// still considered to be a secret and is not stored!
+/// Note that CSPRNG-derived symmetric keys are intentionally not stretched as
+/// their entropy may be constrained by the PBKDF2 digest.
 pub const PBKDF2_ROUNDS: usize = 256_000;
-/// The hash function used for PBKDF2 is SHA1 (fixed by the SecureStore format).
-/// CSPRNG-derived symmetric keys are intentionally not stretched as their
-/// entropy may be constrained by the PBKDF2 digest.
 /// The size of an initialization vector in bytes
 pub const IV_SIZE: usize = KEY_LENGTH;
 /// The latest version of the vault schema
