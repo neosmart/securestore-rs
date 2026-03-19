@@ -33,3 +33,14 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+
+  build-rustls:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build securestore with rustls
+      run: cargo build -p securestore --no-default-features --features rustls --verbose
+    - name: Test securestore with rustls
+      run: cargo test -p securestore --no-default-features --features rustls --verbose
+    - name: Build ssclient with rustls
+      run: cargo build -p ssclient --no-default-features --features rustls --verbose

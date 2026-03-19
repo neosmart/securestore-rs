@@ -15,6 +15,53 @@ This rust implementation of the SecureStore protocol ships in two separate, comp
 
 The typical workflow for deploying versioned secrets alongside a restricted-access binary (e.g. a web app, a kiosk, or similar where the application isn't distributed directly to end users and is running in what is considered to be a privileged environment) is demonstrated here.
 
+### Build features (crypto backends)
+
+Cryptography is provided by one of two backends, selected at build time via Cargo features:
+
+| Feature | Description |
+|--------|-------------|
+| `openssl` (default) | Uses the [OpenSSL] library. Requires OpenSSL to be already installed. |
+| `openssl-vendored` | Builds and statically links against the [OpenSSL] library at build-time. Requires a C toolchain for the target platform. |
+| `rustls` | Pure Rust backend (no OpenSSL and no C toolchain). Uses `getrandom`, `aes`, `cbc`, `hmac`, `sha1`, `pbkdf2`, and `subtle` crates. Ideal when you want to avoid OpenSSL (e.g. Windows, musl, or cross-compilation). |
+
+- **Default:** both the `securestore` crate and `ssclient` use the **OpenSSL** backend by default.
+- **Vendored OpenSSL:** to statically link OpenSSL (e.g. for portable Linux binaries), use the **openssl-vendored** feature: `--features openssl-vendored`.
+- **Native Rust:** build with `--no-default-features --features rustls` to use the pure Rust backend. No system OpenSSL or C toolchain is required.
+
+Vaults created or decrypted with one backend are fully compatible with one another; the store format and algorithms are the same.
+
+**Examples:**
+
+```sh
+# Default, requiring OpenSSL:
+cargo build
+cargo install ssclient
+
+# Pure-Rust, no OpenSSL dependency:
+cargo build --no-default-features --features rustls
+cargo install ssclient --no-default-features --features rustls
+
+# Static OpenSSL builds, e.g. for musl or Alpine:
+cargo build --target x86_64-unknown-linux-musl --features openssl-vendored
+```
+
+In `Cargo.toml`, depend on `securestore` with default features for OpenSSL, or opt into a backend explicitly:
+
+```toml
+[dependencies]
+# Default (requires OpenSSL to be already installed):
+securestore = "0.100"
+
+# Pure-Rust (no OpenSSL or other system dependencies):
+# securestore = { version = "0.100", default-features = false, features = ["rustls"] }
+
+# Building OpenSSL from source:
+# securestore = { version = "0.100", features = ["openssl-vendored"] }
+```
+
+[OpenSSL]: https://www.openssl.org/
+
 ## Adding a SecureStore vault to your rust workspace
 
 Start by installing a copy of `ssclient`, the interactive SecureStore cli. Pre-built binaries are available (see releases), but the majority of rust developers will find the most convenient option for distribution to be direct installation via `cargo`:
@@ -210,6 +257,8 @@ edition = "2021"
 [dependencies]
 once_cell = "1.13.0"
 securestore = "0.100.0"
+# Optional: use the pure-Rust crypto backend (no OpenSSL)
+# securestore = { version = "0.100.0", default-features = false, features = ["rustls"] }
 ```
 
 After which we can open `src/main.rs` and add some code to open the secrets file and decrypt + retrieve one or more secrets at runtime. [The ssclient documentation](https://docs.rs/securestore/latest/securestore/) covers how the `securestore` crate and its primary `SecretsManager` type are used, but we'll demo the basics below.

@@ -66,6 +66,7 @@
 //!
 //! assert_eq!(db_password, String::from("pgsql123"));
 //! ```
+mod crypto;
 mod errors;
 mod serial;
 mod shared;
@@ -73,9 +74,9 @@ mod shared;
 mod tests;
 
 use self::shared::{CryptoKeys, EncryptedBlob, Vault};
+use crate::crypto::{pbkdf2_hmac_sha1, rand_bytes};
 pub use crate::errors::{Error, ErrorKind};
 pub use crate::serial::{BinaryDeserializable, BinarySerializable};
-use openssl::rand;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
@@ -212,7 +213,7 @@ const _: () = {
 impl SecretsManager {
     fn create_sentinel(keys: &CryptoKeys) -> EncryptedBlob {
         let mut random = [0u8; shared::IV_SIZE * 2];
-        rand::rand_bytes(&mut random).expect("Failed to create sentinel");
+        rand_bytes(&mut random);
         EncryptedBlob::encrypt(&keys, &random)
     }
 
@@ -481,7 +482,7 @@ impl<'a> KeySource<'a> {
         match &self {
             KeySource::Csprng => {
                 let mut buffer = [0u8; shared::KEY_COUNT * shared::KEY_LENGTH];
-                rand::rand_bytes(&mut buffer).expect("Key generation failure!");
+                rand_bytes(&mut buffer);
 
                 CryptoKeys::import(&buffer[..])
             }
@@ -496,17 +497,13 @@ impl<'a> KeySource<'a> {
             }
             KeySource::Buffer(buf) => CryptoKeys::import(&buf[..]),
             KeySource::Password(password) => {
-                use openssl::pkcs5::pbkdf2_hmac;
-
                 let mut key_data = [0u8; shared::KEY_COUNT * shared::KEY_LENGTH];
-                pbkdf2_hmac(
+                pbkdf2_hmac_sha1(
                     password.as_bytes(),
                     iv,
-                    shared::PBKDF2_ROUNDS,
-                    shared::PBKDF2_DIGEST(),
+                    shared::PBKDF2_ROUNDS as u32,
                     &mut key_data,
-                )
-                .expect("PBKDF2 key generation failed!");
+                );
 
                 CryptoKeys::import(&key_data[..])
             }

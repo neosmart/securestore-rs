@@ -19,5 +19,8 @@ securestore = { path = "../securestore", version = "0.100.0", default-features =
 serde_json = "1.0.114"
 
 [features]
+default = [ "openssl" ]
+openssl = [ "securestore/openssl" ]
 # default = [ "openssl-vendored" ]
 openssl-vendored = [ "securestore/openssl-vendored" ]
+rustls = [ "securestore/rustls" ]

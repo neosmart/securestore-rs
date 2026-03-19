@@ -101,6 +101,7 @@ impl std::convert::From<serde_json::Error> for Error {
     }
 }
 
+#[cfg(not(feature = "rustls"))]
 impl std::convert::From<openssl::error::ErrorStack> for Error {
     fn from(e: openssl::error::ErrorStack) -> Error {
         Error {
