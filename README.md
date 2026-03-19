@@ -21,27 +21,28 @@ Cryptography is provided by one of two backends, selected at build time via Carg
 
 | Feature | Description |
 |--------|-------------|
-| **openssl** (default) | Uses the [OpenSSL] library (system or vendored). Requires OpenSSL to be installed or built. |
-| **rustls** | Pure-Rust backend (no OpenSSL). Uses `getrandom`, `aes`, `cbc`, `hmac`, `sha1`, `pbkdf2`, and `subtle`. Ideal when you want to avoid OpenSSL (e.g. Windows, musl, or cross-compilation). |
+| `openssl` (default) | Uses the [OpenSSL] library. Requires OpenSSL to be already installed. |
+| `openssl-vendored` | Builds and statically links against the [OpenSSL] library at build-time. Requires a C toolchain for the target platform. |
+| `rustls` | Pure Rust backend (no OpenSSL and no C toolchain). Uses `getrandom`, `aes`, `cbc`, `hmac`, `sha1`, `pbkdf2`, and `subtle` crates. Ideal when you want to avoid OpenSSL (e.g. Windows, musl, or cross-compilation). |
 
-- **Default:** both the `securestore` crate and `ssclient` use the **openssl** backend by default.
-- **Use rustls:** build with `--no-default-features --features rustls` to use the pure-Rust backend. No system OpenSSL or C toolchain is required.
+- **Default:** both the `securestore` crate and `ssclient` use the **OpenSSL** backend by default.
 - **Vendored OpenSSL:** to statically link OpenSSL (e.g. for portable Linux binaries), use the **openssl-vendored** feature: `--features openssl-vendored`.
+- **Native Rust:** build with `--no-default-features --features rustls` to use the pure Rust backend. No system OpenSSL or C toolchain is required.
 
-Vaults created or decrypted with one backend are fully compatible with the other; the format and algorithms are the same.
+Vaults created or decrypted with one backend are fully compatible with one another; the store format and algorithms are the same.
 
 **Examples:**
 
 ```sh
-# Default: OpenSSL (system or as needed)
+# Default, requiring OpenSSL:
 cargo build
 cargo install ssclient
 
-# Pure-Rust, no OpenSSL
+# Pure-Rust, no OpenSSL dependency:
 cargo build --no-default-features --features rustls
 cargo install ssclient --no-default-features --features rustls
 
-# Static OpenSSL for musl (e.g. Alpine)
+# Static OpenSSL builds, e.g. for musl or Alpine:
 cargo build --target x86_64-unknown-linux-musl --features openssl-vendored
 ```
 
@@ -49,11 +50,14 @@ In `Cargo.toml`, depend on `securestore` with default features for OpenSSL, or o
 
 ```toml
 [dependencies]
-# Default: OpenSSL
+# Default (requires OpenSSL to be already installed):
 securestore = "0.100"
 
-# Or pure-Rust (no OpenSSL)
+# Pure-Rust (no OpenSSL or other system dependencies):
 # securestore = { version = "0.100", default-features = false, features = ["rustls"] }
+
+# Building OpenSSL from source:
+# securestore = { version = "0.100", features = ["openssl-vendored"] }
 ```
 
 [OpenSSL]: https://www.openssl.org/
