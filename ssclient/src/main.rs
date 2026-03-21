@@ -6,7 +6,7 @@ use clap::{Arg, ArgAction, Command};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const ENOENT: i32 = 2;
 const EEXIST: i32 = 17;
@@ -68,6 +68,7 @@ fn main() {
                     "of 'secrets.json' is used."
                 ))
                 .default_value("secrets.json")
+                .value_parser(clap::value_parser!(PathBuf))
                 .num_args(1),
         )
         .arg(
@@ -100,6 +101,7 @@ fn main() {
             Arg::new("export_key")
                 .long("export-key")
                 .value_name("EXPORT_PATH")
+                .value_parser(clap::value_parser!(PathBuf))
                 .num_args(1)
                 .global(true)
                 // We shouldn't use .requires("password") here because we default
@@ -126,6 +128,7 @@ fn main() {
                 .alias("keyfile")
                 .alias("key-file")
                 .value_name("KEYFILE")
+                .value_parser(clap::value_parser!(PathBuf))
                 .help("Use key stored at path KEYFILE.")
                 .num_args(1),
         )
@@ -157,6 +160,7 @@ fn main() {
                     Arg::new("create_store")
                         .index(1)
                         .value_name("STORE")
+                        .value_parser(clap::value_parser!(PathBuf))
                         .default_value("secrets.json")
                         .help("The path to the SecureStore vault to create.")
                         .long_help(concat!(
@@ -324,15 +328,14 @@ fn main() {
 
     // We can't use `.is_present()` as the default value would coerce a true result.
     // It is safe to call unwrap because a default value is always present.
-    let store_path_str = if mode == Mode::Create
+    let store_path = if mode == Mode::Create
         && mode_args.value_source("create_store") == Some(ValueSource::CommandLine)
     {
-        mode_args.get_one::<String>("create_store").unwrap()
+        mode_args.get_one::<PathBuf>("create_store").unwrap()
     } else {
         // This has a default value of secrets.json so it's safe to unwrap
-        app_args.get_one::<String>("store").unwrap()
+        app_args.get_one::<PathBuf>("store").unwrap()
     };
-    let store_path = Path::new(store_path_str);
 
     if mode != Mode::Create && !store_path.exists() {
         eprintln!("Cannot find secure store: {}", store_path.display());
@@ -342,7 +345,7 @@ fn main() {
 
     let mut password;
     let keysource = if app_args.value_source("keyfile").is_some() {
-        let keyfile = Path::new(app_args.get_one::<String>("keyfile").unwrap());
+        let keyfile = app_args.get_one::<PathBuf>("keyfile").unwrap();
         KeySource::Path(keyfile)
     } else if is_tty {
         loop {
@@ -372,7 +375,7 @@ fn main() {
         KeySource::Password(app_args.get_one::<String>("password").unwrap())
     };
 
-    let export_path = app_args.get_one::<String>("export_key").map(|s| s.as_str());
+    let export_path = app_args.get_one::<PathBuf>("export_key").map(Path::new);
     let exclude_vcs = !app_args.get_flag("no_vcs");
     match run(mode, store_path, keysource, export_path, exclude_vcs) {
         Ok(_) => {}
@@ -403,7 +406,7 @@ fn run(
     mode: Mode,
     store_path: &Path,
     keysource: KeySource,
-    key_export_path: Option<&str>,
+    key_export_path: Option<&Path>,
     exclude_vcs: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (keysource, key_export_path) = match (&mode, &keysource) {
