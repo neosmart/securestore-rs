@@ -20,8 +20,15 @@ const VCS_TEST_MAX_DEPTH: i32 = 48;
 enum Mode<'a> {
     Get(GetKey<'a>, OutputFormat),
     Set(&'a str, Option<&'a str>),
-    Create,
+    Create {
+        export_key: Option<&'a Path>,
+        no_vcs: bool,
+    },
     Delete(&'a str),
+    ExportKey {
+        export_path: &'a Path,
+        no_vcs: bool,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,6 +52,20 @@ enum VcsType {
 
 fn main() {
     let is_tty = atty::is(atty::Stream::Stdin);
+
+    let no_vcs = Arg::new("no_vcs")
+        .long("no-vcs")
+        .action(ArgAction::SetTrue)
+        .help("Do not exclude generated private key in vcs ignore file.")
+        .long_help(concat!(
+            "By default, when ssclient generates a new key file (either when a new ",
+            "SecureStore vault is created via `ssclient create -k secrets.key` or ",
+            "when exporting a key file to use interchangeably with a password via ",
+            "`ssclient --export-key secrets.key ...`), if the path to the key is found ",
+            "to reside in a VCS-owned directory, ssclient generates an exclude rule for ",
+            "for the newly created key file to ensure it is never accidentally committed ",
+            "to a repository. The usage of `--no-vcs` suppresses this check and behavior.",
+        ));
 
     let mut cmd = Command::new("SecureStore")
         .version(env!("CARGO_PKG_VERSION"))
@@ -98,29 +119,6 @@ fn main() {
                 )),
         )
         .arg(
-            Arg::new("export_key")
-                .long("export-key")
-                .value_name("EXPORT_PATH")
-                .value_parser(clap::value_parser!(PathBuf))
-                .num_args(1)
-                .global(true)
-                // We shouldn't use .requires("password") here because we default
-                // to password-based encryption if no other method is specified.
-                // .requires("password")
-                // .conflicts_with("keyfile")
-                .help("Exports a key equivalent to the supplied password.")
-                .long_help(concat!(
-                    "When used in combination with password-based encryption/",
-                    "decryption, exports a keyfile containing the encryption/",
-                    "decryption key(s) derived from PASSWORD to the path ",
-                    "specified by EXPORT_PATH. \n",
-                    "This allows for subsequent keyless, non-interactive ",
-                    "usage via the SecureStore API while still retaining the ",
-                    "convenience of password-based encryption/decryption ",
-                    "when using ssclient at the command line."
-                )),
-        )
-        .arg(
             Arg::new("keyfile")
                 .global(true)
                 .short('k')
@@ -131,24 +129,6 @@ fn main() {
                 .value_parser(clap::value_parser!(PathBuf))
                 .help("Use key stored at path KEYFILE.")
                 .num_args(1),
-        )
-        .arg(
-            // --no-vcs isn't tied to `ssclient create` because it can also be used when exporting
-            // the private key with top-level `ssclient --export-key`
-            Arg::new("no_vcs")
-                .global(true)
-                .long("no-vcs")
-                .action(ArgAction::SetTrue)
-                .help("Do not exclude private key in vcs ignore file.")
-                .long_help(concat!(
-                    "By default, when ssclient generates a new key file (either when a new ",
-                    "SecureStore vault is created via `ssclient create -k secrets.key` or ",
-                    "when exporting a key file to use interchangeably with a password via ",
-                    "`ssclient --export-key secrets.key ...`), if the path to the key is found ",
-                    "to reside in a VCS-owned directory, ssclient generates an exclude rule for ",
-                    "for the newly created key file to ensure it is never accidentally committed ",
-                    "to a repository. The usage of `--no-vcs` suppresses this check and behavior.",
-                )),
         )
         .subcommand(
             Command::new("create")
@@ -166,6 +146,25 @@ fn main() {
                         .long_help(concat!(
                             "If not provided, the SecureStore standard location 'secrets.json' ",
                             "is used as a default.",
+                        )),
+                )
+                .arg(no_vcs.clone())
+                .arg(
+                    Arg::new("export_key")
+                        .long("export-key")
+                        .value_name("EXPORT_PATH")
+                        .value_parser(clap::value_parser!(PathBuf))
+                        .num_args(1)
+                        .help("Exports a keyfile equivalent to the supplied password.")
+                        .long_help(concat!(
+                            "When used in combination with password-based encryption/",
+                            "decryption, exports a keyfile containing the encryption/",
+                            "decryption key(s) derived from PASSWORD to the path ",
+                            "specified by EXPORT_PATH. \n",
+                            "This allows for subsequent keyless, non-interactive ",
+                            "usage via the SecureStore API while still retaining the ",
+                            "convenience of password-based encryption/decryption ",
+                            "when using ssclient at the command line."
                         )),
                 ),
         )
@@ -273,6 +272,32 @@ fn main() {
                         .required(true)
                         .help("The unique name of the secret to be deleted."),
                 ),
+        )
+        .subcommand(
+            Command::new("export-key")
+                .about(concat!(
+                    "Exports a keyfile equivalent to the supplied password.\n",
+                    "See `ssclient help export-key` for more info"
+                ))
+                .long_about(concat!(
+                    "When used in combination with password-based encryption/",
+                    "decryption, exports a keyfile containing the encryption/",
+                    "decryption key(s) derived from PASSWORD to the path ",
+                    "specified by EXPORT_PATH. \n",
+                    "This allows for subsequent keyless, non-interactive ",
+                    "usage via the SecureStore API while still retaining the ",
+                    "convenience of password-based encryption/decryption ",
+                    "when using ssclient at the command line."
+                ))
+                .arg(
+                    Arg::new("export_path")
+                        .value_name("EXPORT_PATH")
+                        .value_parser(clap::value_parser!(PathBuf))
+                        .num_args(1)
+                        .help("Where to export the keyfile version of the vault password")
+                        .required(true),
+                )
+                .arg(no_vcs),
         );
 
     let app_args = cmd.get_matches_mut();
@@ -306,7 +331,22 @@ fn main() {
             mode_args.get_one::<String>("set_value").map(|s| s.as_str()),
         ),
         "delete" => Mode::Delete(mode_args.get_one::<String>("delete_key").unwrap()),
-        "create" => Mode::Create,
+        "create" => {
+            let export_key = mode_args.get_one::<PathBuf>("export_key").map(Path::new);
+            let no_vcs = mode_args.get_flag("no_vcs");
+            Mode::Create { export_key, no_vcs }
+        }
+        "export-key" => {
+            let export_path = mode_args
+                .get_one::<PathBuf>("export_path")
+                .map(Path::new)
+                .unwrap();
+            let no_vcs = mode_args.get_flag("no_vcs");
+            Mode::ExportKey {
+                export_path,
+                no_vcs,
+            }
+        }
         _ => {
             let _ = cmd.print_help();
             std::process::exit(1);
@@ -317,7 +357,7 @@ fn main() {
     // positional argument (e.g. `ssclient create path.json`) or via the global
     // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
     // positional argument takes priority.
-    if mode == Mode::Create
+    if matches!(mode, Mode::Create { .. })
         && mode_args.value_source("create_store") != Some(ValueSource::DefaultValue)
         && app_args.value_source("store") != Some(ValueSource::DefaultValue)
         && mode_args.get_one::<String>("create_store") != app_args.get_one::<String>("store")
@@ -328,7 +368,7 @@ fn main() {
 
     // We can't use `.is_present()` as the default value would coerce a true result.
     // It is safe to call unwrap because a default value is always present.
-    let store_path = if mode == Mode::Create
+    let store_path = if matches!(mode, Mode::Create { .. })
         && mode_args.value_source("create_store") == Some(ValueSource::CommandLine)
     {
         mode_args.get_one::<PathBuf>("create_store").unwrap()
@@ -337,7 +377,7 @@ fn main() {
         app_args.get_one::<PathBuf>("store").unwrap()
     };
 
-    if mode != Mode::Create && !store_path.exists() {
+    if !matches!(mode, Mode::Create { .. }) && !store_path.exists() {
         eprintln!("Cannot find secure store: {}", store_path.display());
         // 0x02 is both ENOENT and ERROR_FILE_NOT_FOUND 👍
         std::process::exit(ENOENT);
@@ -352,7 +392,7 @@ fn main() {
             eprint!("Password: ");
             password = secure_read();
 
-            if mode == Mode::Create {
+            if matches!(mode, Mode::Create { .. }) {
                 eprint!("Confirm password: ");
                 let password2 = secure_read();
                 if password != password2 {
@@ -375,9 +415,7 @@ fn main() {
         KeySource::Password(app_args.get_one::<String>("password").unwrap())
     };
 
-    let export_path = app_args.get_one::<PathBuf>("export_key").map(Path::new);
-    let exclude_vcs = !app_args.get_flag("no_vcs");
-    match run(mode, store_path, keysource, export_path, exclude_vcs) {
+    match run(mode, store_path, keysource) {
         Ok(_) => {}
         Err(msg) => {
             eprintln!("{}", msg);
@@ -406,24 +444,37 @@ fn run(
     mode: Mode,
     store_path: &Path,
     keysource: KeySource,
-    key_export_path: Option<&Path>,
-    exclude_vcs: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let (keysource, key_export_path) = match (&mode, &keysource) {
-        (Mode::Create, KeySource::Path(path)) => {
-            if !path.exists() || std::fs::metadata(path).unwrap().len() == 0 {
-                (KeySource::Csprng, Some(*path))
-            } else {
-                eprintln!("Using existing keyfile {}", path.display());
-                (keysource, None)
+    let (keysource, key_export_paths) = match &mode {
+        Mode::Create { export_key, .. } => {
+            let mut key_export_paths = Vec::new();
+            if let &Some(export_key_path) = export_key {
+                key_export_paths.push(export_key_path);
+            }
+            match &keysource {
+                &KeySource::Path(path) => {
+                    // If it doesn't exist or is empty
+                    if !std::fs::metadata(path).is_ok_and(|m| m.len() > 0) {
+                        // Add if it's not the same path being exported to
+                        if !export_key.is_some_and(|p| p == path) {
+                            key_export_paths.push(path);
+                        }
+                        (KeySource::Csprng, key_export_paths)
+                    } else {
+                        eprintln!("Using existing keyfile {}", path.display());
+                        (keysource, key_export_paths)
+                    }
+                }
+                _ => (keysource, key_export_paths),
             }
         }
-        _ => (keysource, key_export_path.map(|path| Path::new(path))),
+        Mode::ExportKey { export_path, .. } => (keysource, vec![*export_path]),
+        _ => (keysource, Vec::new()),
     };
 
     let mut sman = match &mode {
-        Mode::Create => {
-            if store_path.exists() && std::fs::metadata(store_path).unwrap().len() > 0 {
+        Mode::Create { .. } => {
+            if std::fs::metadata(store_path).is_ok_and(|m| m.len() > 0) {
                 if !confirm(format!(
                     "Overwrite existing keystore {}",
                     store_path.display()
@@ -437,29 +488,42 @@ fn run(
         _ => SecretsManager::load(store_path, &keysource)?,
     };
 
-    if let Some(path) = key_export_path {
+    // Safety: Ask user to confirm all overwrites before actually updating any of
+    // them
+    for &path in &key_export_paths {
         if path.exists() && path.metadata().unwrap().len() > 0 {
-            if !confirm(format!("Overwrite existing keyfile at {}", path.display())) {
+            if !confirm(format!("Overwrite existing keyfile at {}?", path.display())) {
                 eprintln!("Keyfile export aborted.");
                 std::process::exit(EEXIST);
             }
         }
+    }
+    for &path in &key_export_paths {
         eprintln!("Saving newly generated key to {}", path.display());
         sman.export_key(path)?;
     }
 
+    let mut exclude_in_vcs = false;
+    let write_store;
+
     match mode {
-        Mode::Create => {}
+        Mode::Create { no_vcs, .. } => {
+            write_store = true;
+            exclude_in_vcs = !no_vcs;
+        }
         Mode::Get(GetKey::Single(key), _) => {
+            write_store = false;
             let secret = get_secret(&sman, key)?;
             println!("{}", secret);
         }
         Mode::Get(GetKey::All, OutputFormat::Text) => {
+            write_store = false;
             for key in sman.keys() {
                 println!("{}: {}", key, get_secret(&sman, key)?);
             }
         }
         Mode::Get(GetKey::All, OutputFormat::Json) => {
+            write_store = false;
             let dump: Vec<_> = sman
                 .keys()
                 .map(|key| match sman.get(key) {
@@ -487,8 +551,12 @@ fn run(
                 .map_err(|err| format!("Failed to serialize secrets to JSON: {err}"))?;
             println!("{}", json);
         }
-        Mode::Set(key, Some(value)) => sman.set(key, value),
+        Mode::Set(key, Some(value)) => {
+            write_store = true;
+            sman.set(key, value)
+        }
         Mode::Set(key, None) => {
+            write_store = true;
             let is_tty = atty::is(atty::Stream::Stdin);
             if is_tty {
                 eprint!("Value: ");
@@ -496,22 +564,22 @@ fn run(
             let value = read();
             sman.set(key, value);
         }
-        Mode::Delete(key) => sman.remove(key)?,
+        Mode::Delete(key) => {
+            write_store = true;
+            sman.remove(key)?;
+        }
+        Mode::ExportKey { no_vcs, .. } => {
+            write_store = false;
+            exclude_in_vcs = !no_vcs;
+        }
     }
 
-    sman.save_as(store_path)?;
+    if write_store {
+        sman.save_as(store_path)?;
+    }
 
-    if exclude_vcs {
-        let vcs_exclude_path = match (mode, keysource, key_export_path) {
-            // Exclude the already present/created key file
-            (Mode::Create, KeySource::Path(path), _) => Some(path),
-            // Exclude the key file we just exported
-            (_, _, Some(path)) => Some(path),
-            // No key file to exclude
-            _ => None,
-        };
-
-        if let Some(vcs_exclude_path) = vcs_exclude_path {
+    if exclude_in_vcs {
+        for &vcs_exclude_path in &key_export_paths {
             if repo_type(vcs_exclude_path, VCS_TEST_MAX_DEPTH) != VcsType::None {
                 let parent_dir = vcs_exclude_path.parent().unwrap();
                 let ignore_file = parent_dir.join(".gitignore");
