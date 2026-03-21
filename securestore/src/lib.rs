@@ -510,3 +510,40 @@ impl<'a> KeySource<'a> {
         }
     }
 }
+
+#[doc(hidden)]
+/// Returns the configured crypto backend
+pub fn build_crypto_backend() -> String {
+    let variant = if cfg!(feature = "openssl-vendored") {
+        "openssl-static"
+    } else if cfg!(feature = "openssl") {
+        "openssl"
+    } else if cfg!(feature = "rustls") {
+        "rustls"
+    } else {
+        panic!("Unknown build variant!");
+    };
+
+    variant.to_string()
+}
+
+#[doc(hidden)]
+/// Returns version info for the library itself and some of its dependencies
+pub fn build_version_info() -> String {
+    let variant = if cfg!(feature = "openssl-vendored") {
+        "openssl-static"
+    } else if cfg!(feature = "openssl") {
+        "openssl"
+    } else if cfg!(feature = "rustls") {
+        "rustls"
+    } else {
+        panic!("Unknown build variant!");
+    };
+
+    #[cfg(feature = "openssl")]
+    let extra = format!(" ({})", openssl::version::version());
+    #[cfg(not(feature = "openssl"))]
+    let extra = String::new();
+
+    format!("{}/{variant}{extra}", env!("CARGO_PKG_VERSION"))
+}

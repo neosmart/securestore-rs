@@ -68,7 +68,7 @@ fn main() {
         ));
 
     let mut cmd = Command::new("SecureStore")
-        .version(env!("CARGO_PKG_VERSION"))
+        .disable_version_flag(true)
         .author(concat!(
             "Copyright NeoSmart Technologies 2018-2022.\n",
             "Developed by Mahmoud Al-Qudsi and SecureStore contributors"
@@ -129,6 +129,15 @@ fn main() {
                 .value_parser(clap::value_parser!(PathBuf))
                 .help("Use key stored at path KEYFILE.")
                 .num_args(1),
+        )
+        .arg(
+            Arg::new("version")
+                .global(true)
+                .short('V')
+                .long("version")
+                .help("Display version info")
+                .num_args(0)
+                .action(ArgAction::SetTrue),
         )
         .subcommand(
             Command::new("create")
@@ -304,7 +313,14 @@ fn main() {
     let subcommand = match app_args.subcommand_name() {
         Some(name) => name,
         None => {
-            let _ = cmd.print_help();
+            if app_args.get_flag("version") {
+                // Clap itself can tell the difference between -V and --version but doesn't let
+                // us do the same :(
+                let short = std::env::args().any(|arg| &arg == "-V");
+                print_version_info(short);
+            } else {
+                let _ = cmd.print_help();
+            }
             return;
         }
     };
@@ -421,6 +437,18 @@ fn main() {
             eprintln!("{}", msg);
             std::process::exit(1);
         }
+    }
+}
+
+fn print_version_info(short: bool) {
+    let variant = securestore::build_crypto_backend();
+
+    let client_version = env!("CARGO_PKG_VERSION");
+    println!("ssclient {client_version}/{variant}");
+
+    if !short {
+        let lib_version = securestore::build_version_info();
+        println!("SecureStore {lib_version}");
     }
 }
 
