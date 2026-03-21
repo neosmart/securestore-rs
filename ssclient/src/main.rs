@@ -56,7 +56,7 @@ fn main() {
     let no_vcs = Arg::new("no_vcs")
         .long("no-vcs")
         .action(ArgAction::SetTrue)
-        .help("Do not exclude generated private key in vcs ignore file.")
+        .help("Do not exclude generated encryption key in vcs ignore file.")
         .long_help(concat!(
             "By default, when ssclient generates a new key file (either when a new ",
             "SecureStore vault is created via `ssclient create -k secrets.key` or ",
