@@ -11,7 +11,7 @@ type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
 type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
 
 pub fn rand_bytes(buf: &mut [u8]) {
-    getrandom::getrandom(buf).expect("CSPRNG failure");
+    getrandom::fill(buf).expect("CSPRNG failure");
 }
 
 pub fn aes_128_cbc_encrypt(key: &[u8; 16], iv: &[u8; 16], plaintext: &[u8]) -> Vec<u8> {

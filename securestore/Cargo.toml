@@ -24,7 +24,7 @@ openssl = { version = "0.10.64", optional = true }
 openssl = { version = "0.10.64", optional = true }
 
 [dependencies.getrandom]
-version = "0.2"
+version = "0.4"
 optional = true
 
 [dependencies.aes]
