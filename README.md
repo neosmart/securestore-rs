@@ -332,14 +332,14 @@ The generic KV-nature of the SecureStore protocol and the SecureStore crate make
 
 ```rust
 static SECRETS: Lazy<SecretsManager> = Lazy::new(|| {
-    let (store_path, key_path) = match std::env::var("MYWEBAPP_ENV").as_ref().map(|s| s.as_str()) {
-        Ok("STAGING") => ("secure/secrets.staging.json", Path::new("secure/secrets.staging.key")),
-        Ok("PRODUCTION") => ("secure/secrets.prod.json", Path::new("secure/secrets.prod.key")),
-        _ => ("secure/secrets.dev.json", Path::new("secure/secrets.dev.key")),
+    let (name, store_path, key_path) = match std::env::var("MYWEBAPP_ENV").as_deref()) {
+        Ok("STAGING") => ("staging", "secure/secrets.staging.json", Path::new("secure/secrets.staging.key")),
+        Ok("PRODUCTION") => ("prod", "secure/secrets.prod.json", Path::new("secure/secrets.prod.key")),
+        _ => ("dev", "secure/secrets.dev.json", Path::new("secure/secrets.dev.key")),
     };
 
     SecretsManager::load(store_path, KeySource::File(key_path))
-        .expect("Failed to load SecureStore vault!")
+        .expect(&format!("Failed to load {name} SecureStore vault!"))
 });
 ```
 
