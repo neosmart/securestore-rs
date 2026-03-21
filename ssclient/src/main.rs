@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod client_tests;
 
-use clap::{App, Arg, SubCommand, ValueSource};
+use clap::parser::ValueSource;
+use clap::{Arg, ArgAction, Command};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
 use std::io::Write;
@@ -44,7 +45,8 @@ enum VcsType {
 
 fn main() {
     let is_tty = atty::is(atty::Stream::Stdin);
-    let mut args = App::new("SecureStore")
+
+    let mut cmd = Command::new("SecureStore")
         .version(env!("CARGO_PKG_VERSION"))
         .author(concat!(
             "Copyright NeoSmart Technologies 2018-2022.\n",
@@ -55,7 +57,7 @@ fn main() {
             "Learn more at https://neosmart.net/SecureStore/"
         ))
         .arg(
-            Arg::with_name("store")
+            Arg::new("store")
                 .global(true)
                 .short('s')
                 .long("store")
@@ -66,15 +68,18 @@ fn main() {
                     "of 'secrets.json' is used."
                 ))
                 .default_value("secrets.json")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
-            Arg::with_name("password")
+            Arg::new("password")
                 .global(true)
                 .short('p')
                 .long("password")
                 .value_name("PASSWORD")
-                .takes_value(!is_tty)
+                // Passing the password as a literal argument is normally disallowed to encourage
+                // entering it interactively for security reasons, but we have no other option
+                // if operating non-interactively.
+                .num_args(if is_tty { 0 } else { 1 })
                 .conflicts_with("keyfile")
                 .help(concat!(
                     "Prompt for password used to derive key. \n",
@@ -92,10 +97,10 @@ fn main() {
                 )),
         )
         .arg(
-            Arg::with_name("export_key")
+            Arg::new("export_key")
                 .long("export-key")
                 .value_name("EXPORT_PATH")
-                .number_of_values(1)
+                .num_args(1)
                 .global(true)
                 // We shouldn't use .requires("password") here because we default
                 // to password-based encryption if no other method is specified.
@@ -114,7 +119,7 @@ fn main() {
                 )),
         )
         .arg(
-            Arg::with_name("keyfile")
+            Arg::new("keyfile")
                 .global(true)
                 .short('k')
                 .long("key")
@@ -122,12 +127,15 @@ fn main() {
                 .alias("key-file")
                 .value_name("KEYFILE")
                 .help("Use key stored at path KEYFILE.")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
+            // --no-vcs isn't tied to `ssclient create` because it can also be used when exporting
+            // the private key with top-level `ssclient --export-key`
             Arg::new("no_vcs")
+                .global(true)
                 .long("no-vcs")
-                .takes_value(false)
+                .action(ArgAction::SetTrue)
                 .help("Do not exclude private key in vcs ignore file.")
                 .long_help(concat!(
                     "By default, when ssclient generates a new key file (either when a new ",
@@ -140,13 +148,13 @@ fn main() {
                 )),
         )
         .subcommand(
-            SubCommand::with_name("create")
+            Command::new("create")
                 .about(concat!(
                     "Create a new SecureStore vault for secrets storage.\n",
                     "See `ssclient help create` for more info"
                 ))
                 .arg(
-                    Arg::with_name("create_store")
+                    Arg::new("create_store")
                         .index(1)
                         .value_name("STORE")
                         .default_value("secrets.json")
@@ -158,7 +166,7 @@ fn main() {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("get")
+            Command::new("get")
                 .about(concat!(
                     "Decrypt and retrieve secrets.\n",
                     "See `ssclient help get` for more info"
@@ -174,17 +182,18 @@ fn main() {
                     "to a JSON file (via `ssclient get --all --format json`).",
                 ))
                 .arg(
-                    Arg::with_name("get_key")
+                    Arg::new("get_key")
                         .index(1)
                         .value_name("KEY")
                         .conflicts_with("get_all")
-                        .required(true)
+                        .required_unless_present("get_all")
                         .help("The name of the secret to be decrypted."),
                 )
                 .arg(
-                    Arg::with_name("get_all")
+                    Arg::new("get_all")
                         .short('a')
                         .long("all")
+                        .action(ArgAction::SetTrue)
                         .help("Decrypt all secrets, e.g. for export.")
                         .long_help(concat!(
                             "Enumerates and decrypts all secrets found in the SecureStore vault, ",
@@ -197,12 +206,11 @@ fn main() {
                         )),
                 )
                 .arg(
-                    Arg::with_name("get_format")
+                    Arg::new("get_format")
                         .long("format")
-                        .takes_value(true)
+                        .num_args(1)
                         .requires("get_all")
-                        .possible_value("json")
-                        .possible_value("text")
+                        .value_parser(["json", "text"])
                         .help("Specifies the format to export all decrypted values in.")
                         .long_help(concat!(
                             "Currently supported formats include `text` and `json` (the default); ",
@@ -215,13 +223,13 @@ fn main() {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("set")
+            Command::new("set")
                 .about(concat!(
                     "Add or update an encrypted value to/in the store.\n",
                     "See `ssclient help set` for more info"
                 ))
                 .arg(
-                    Arg::with_name("set_key")
+                    Arg::new("set_key")
                         .index(1)
                         .value_name("KEY")
                         .required(true)
@@ -235,7 +243,7 @@ fn main() {
                         )),
                 )
                 .arg(
-                    Arg::with_name("set_value")
+                    Arg::new("set_value")
                         .index(2)
                         .value_name("VALUE")
                         .required(false)
@@ -248,14 +256,14 @@ fn main() {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("delete")
+            Command::new("delete")
                 .alias("remove")
                 .about(concat!(
                     "Remove a secret from the store.\n",
                     "See `ssclient help set` for more info"
                 ))
                 .arg(
-                    Arg::with_name("delete_key")
+                    Arg::new("delete_key")
                         .value_name("KEY")
                         .index(1)
                         .required(true)
@@ -263,37 +271,40 @@ fn main() {
                 ),
         );
 
-    let app_args = args.get_matches_mut();
+    let app_args = cmd.get_matches_mut();
     let subcommand = match app_args.subcommand_name() {
         Some(name) => name,
         None => {
-            let _ = args.print_help();
+            let _ = cmd.print_help();
             return;
         }
     };
 
     let mode_args = app_args.subcommand_matches(subcommand).unwrap();
 
-    let mode = match app_args.subcommand_name() {
-        Some("get") => {
-            let key = match mode_args.value_of("get_key") {
+    let mode = match subcommand {
+        "get" => {
+            let key = match mode_args.get_one::<String>("get_key") {
                 Some(key) => GetKey::Single(key),
                 None => GetKey::All,
             };
-            let format = match mode_args.value_of("get_format") {
+            let format = match mode_args
+                .get_one::<String>("get_format")
+                .map(|s| s.as_str())
+            {
                 Some("text") => OutputFormat::Text,
                 _ => OutputFormat::Json,
             };
             Mode::Get(key, format)
         }
-        Some("set") => Mode::Set(
-            mode_args.value_of("set_key").unwrap(),
-            mode_args.value_of("set_value"),
+        "set" => Mode::Set(
+            mode_args.get_one::<String>("set_key").unwrap(),
+            mode_args.get_one::<String>("set_value").map(|s| s.as_str()),
         ),
-        Some("delete") => Mode::Delete(mode_args.value_of("delete_key").unwrap()),
-        Some("create") => Mode::Create,
+        "delete" => Mode::Delete(mode_args.get_one::<String>("delete_key").unwrap()),
+        "create" => Mode::Create,
         _ => {
-            let _ = args.print_help();
+            let _ = cmd.print_help();
             std::process::exit(1);
         }
     };
@@ -303,9 +314,9 @@ fn main() {
     // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
     // positional argument takes priority.
     if mode == Mode::Create
-        && mode_args.value_source("create_store").unwrap() != ValueSource::DefaultValue
-        && app_args.value_source("store").unwrap() != ValueSource::DefaultValue
-        && mode_args.value_of("create_store") != app_args.value_of("store")
+        && mode_args.value_source("create_store") != Some(ValueSource::DefaultValue)
+        && app_args.value_source("store") != Some(ValueSource::DefaultValue)
+        && mode_args.get_one::<String>("create_store") != app_args.get_one::<String>("store")
     {
         eprintln!("Conflicting store paths provided!");
         std::process::exit(1);
@@ -313,14 +324,15 @@ fn main() {
 
     // We can't use `.is_present()` as the default value would coerce a true result.
     // It is safe to call unwrap because a default value is always present.
-    let store_path = if mode == Mode::Create
-        && mode_args.value_source("create_store").unwrap() == ValueSource::CommandLine
+    let store_path_str = if mode == Mode::Create
+        && mode_args.value_source("create_store") == Some(ValueSource::CommandLine)
     {
-        Path::new(mode_args.value_of("create_store").unwrap())
+        mode_args.get_one::<String>("create_store").unwrap()
     } else {
         // This has a default value of secrets.json so it's safe to unwrap
-        Path::new(app_args.value_of("store").unwrap())
+        app_args.get_one::<String>("store").unwrap()
     };
+    let store_path = Path::new(store_path_str);
 
     if mode != Mode::Create && !store_path.exists() {
         eprintln!("Cannot find secure store: {}", store_path.display());
@@ -329,8 +341,8 @@ fn main() {
     }
 
     let mut password;
-    let keysource = if app_args.is_present("keyfile") {
-        let keyfile = Path::new(app_args.value_of("keyfile").unwrap());
+    let keysource = if app_args.value_source("keyfile").is_some() {
+        let keyfile = Path::new(app_args.get_one::<String>("keyfile").unwrap());
         KeySource::Path(keyfile)
     } else if is_tty {
         loop {
@@ -352,17 +364,17 @@ fn main() {
             break KeySource::Password(&password);
         }
     } else {
-        if !app_args.is_present("password") {
+        if app_args.value_source("password").is_none() {
             eprintln!("Either a password or keyfile is required in headless mode!");
-            let _ = args.print_help();
+            let _ = cmd.print_help();
             std::process::exit(1);
         }
-        KeySource::Password(app_args.value_of("password").unwrap())
+        KeySource::Password(app_args.get_one::<String>("password").unwrap())
     };
 
-    let export_path = app_args.value_of("export_key");
-    let exclude_vcs = !app_args.contains_id("no_vcs");
-    match run(mode, &store_path, keysource, export_path, exclude_vcs) {
+    let export_path = app_args.get_one::<String>("export_key").map(|s| s.as_str());
+    let exclude_vcs = !app_args.get_flag("no_vcs");
+    match run(mode, store_path, keysource, export_path, exclude_vcs) {
         Ok(_) => {}
         Err(msg) => {
             eprintln!("{}", msg);
