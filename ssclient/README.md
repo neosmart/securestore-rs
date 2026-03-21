@@ -32,30 +32,44 @@ The command line options available for usage with `ssclient` can be seen by runn
 `ssclient -h` for a basic listing of options or `ssclient --help` for extended usage information:
 
 ```
-USAGE:
-    ssclient [OPTIONS] [SUBCOMMAND]
+~> ssclient --help
+Create and manage encrypted secrets stores.
+Learn more at https://neosmart.net/SecureStore/
 
-OPTIONS:
-        --export-key <EXPORT_PATH>    Exports a key equivalent to the supplied password.
-    -h, --help                        Print help information
-    -k, --key <KEYFILE>               Use key stored at path KEYFILE.
-        --no-vcs                      Do not exclude private key in vcs ignore file.
-    -p, --password                    Prompt for password used to derive key.
-                                      In headless environments, takes the password as an argument.
-    -s, --store <STORE>               Specify the path to the secrets store to use for all
-                                      operations. [default: secrets.json]
-    -V, --version                     Print version information
+Usage: ssclient [OPTIONS] [COMMAND]
 
-SUBCOMMANDS:
-    create    Create a new SecureStore vault for secrets storage.
-                  See `ssclient help create` for more info
-    delete    Remove a secret from the store.
-                  See `ssclient help set` for more info
-    get       Decrypt and retrieve secrets.
-                  See `ssclient help get` for more info
-    help      Print this message or the help of the given subcommand(s)
-    set       Add or update an encrypted value to/in the store.
-                  See `ssclient help set` for more info
+Commands:
+  create      Create a new SecureStore vault for secrets storage.
+              See `ssclient help create` for more info
+  get         Decrypt and retrieve secrets.
+              See `ssclient help get` for more info
+  set         Add or update an encrypted value to/in the store.
+              See `ssclient help set` for more info
+  delete      Remove a secret from the store.
+              See `ssclient help set` for more info
+  export-key  Exports a keyfile equivalent to the supplied password.
+              See `ssclient help export-key` for more info
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -s, --store <STORE>
+          When omitted, the standardized SecureStore vault name/path of 'secrets.json' is used.
+
+          [default: secrets.json]
+
+  -p, --password
+          If neither `-p` (use password) nor `-k` (use keyfile) is specified ssclient defaults to password-based encryption/decryption.
+          When used in an interactive tty, the password may not be specified as a command line argument; instead ssclient will provide a secure prompt for the password to be entered in.
+          When used in a headless environment or as part of a script without stdin connected to a tty, the password may be specified as an argument to the `-p`/`--password` switch.
+
+  -k, --key <KEYFILE>
+          Use key stored at path KEYFILE.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 A long-form version of the help may be seen by executing `ssclient --help`, while help for the individual
@@ -117,6 +131,22 @@ key file.
 ~> ssclient create secrets.json --export-key secrets.key
 Password: ***********
 Confirm password: ***********
+
+# Now you can use `ssclient -p` with your old password
+# or `ssclient -k secrets.key` to encrypt/decrypt with
+# the same keys.
+```
+
+this can also be performed after-the-fact with `ssclient export-key`:
+
+```bash
+~> ssclient create secrets.json
+Password: ***********
+Confirm password: ***********
+
+~> ssclient [--store secrets.json] export-key
+Password: ***********
+Saving newly generated key to secrets.key
 
 # Now you can use `ssclient -p` with your old password
 # or `ssclient -k secrets.key` to encrypt/decrypt with
