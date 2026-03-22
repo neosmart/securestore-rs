@@ -1,0 +1,195 @@
+#!/usr/bin/env -S cargo -Zscript
+
+---
+[package]
+edition = "2024"
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+toml = "1.0"
+---
+
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+#[derive(serde::Deserialize)]
+struct Package {
+    name: String,
+    version: String,
+}
+
+#[derive(serde::Deserialize)]
+struct Manifest {
+    package: Package
+}
+
+fn main() {
+    let manifest = File::open("ssclient/Cargo.toml")
+        .expect("Couldn't find Cargo.toml");
+    let manifest = std::io::read_to_string(manifest).unwrap();
+    let manifest: Manifest = toml::from_str(&manifest).unwrap();
+
+    let mut built = false;
+    let name = &manifest.package.name;
+    let version = &manifest.package.version;
+
+    if cfg!(target_os = "linux") {
+        built = true;
+        let bin = build(name, "x86_64-unknown-linux-musl", true);
+        tar(format!("{name}-x86_64-unknown-linux-musl-{version}.tar.zst"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+    }
+
+    if cfg!(target_os = "windows") || is_wsl() {
+        built = true;
+        let bin = build(name, "x86_64-pc-windows-msvc", true);
+        zip(format!("{name}-x86_64-pc-windows-msvc-{version}.zip"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+    }
+
+    // Platform/toolchain default
+    if !built {
+        let target = default_target_triple();
+        let static_build = !is_gnu_libc();
+        let bin = build(name, &target, static_build);
+        tar(format!("{name}-{target}-{version}.tar.zst"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+    }
+}
+
+fn build(name: &str, target: &str, crt_static: bool) -> PathBuf {
+    let cargo = if target.contains("windows") { "cargo.exe" } else { "cargo" };
+    let crt_static = if crt_static { "-Ctarget-feature=+crt-static" } else { "" };
+
+    let mut cargo = Command::new(cargo)
+        .env("RUSTFLAGS", format!("{crt_static}"))
+        .arg("build")
+        .arg("--target")
+        .arg(target)
+        .arg("--release")
+        .arg("--no-default-features")
+        .arg("--features")
+        .arg("rustls")
+        // .arg("--features")
+        // .arg("openssl-vendored")
+        .arg("--bin")
+        .arg(name)
+        .spawn()
+        .expect("Failed to run cargo!");
+
+    let result = cargo.wait().expect("Failed to wait on child cargo!");
+    if !result.success() {
+        panic!("Failed to build package!");
+    }
+
+    let mut path = PathBuf::from(format!("target/{target}/release/{name}"));
+    if target.contains("windows") {
+        path.set_extension("exe");
+    }
+    if !path.exists() {
+        panic!("Cannot locate built binary!");
+    }
+    let path = std::fs::canonicalize(path).unwrap();
+
+    if !target.contains("windows") {
+        strip(&path);
+    }
+    path
+}
+
+fn strip(path: &Path) {
+    let result = Command::new("strip")
+        .arg(path)
+        .output()
+        .unwrap();
+
+    if !result.status.success() {
+        panic!("Failed to strip binary");
+    }
+}
+
+fn tar<P: AsRef<Path>>(out_path: P, files: &[&Path]) {
+    let out_path = out_path.as_ref();
+    if out_path.exists() {
+        std::fs::remove_file(out_path).unwrap();
+    }
+
+    let mut cmd = Command::new("tar");
+
+    cmd.args(["-I", "zstd", "-cf"]);
+    cmd.arg(out_path);
+
+    for path in files {
+        // We need the absolute path because CWD changes between each -C call
+        let path = std::fs::canonicalize(path).unwrap();
+        let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+        let file_name = path.file_name().expect("Path must point to a file");
+
+        // Use -C to switch to file's directory before adding the file to remove folder structure
+        cmd.arg("-C").arg(parent).arg(file_name);
+    }
+
+    let mut tar = cmd.spawn().expect("Failed to execute `tar`");
+    let result = tar.wait().expect("Failed to wait for tar to exit");
+    if !result.success() {
+        panic!("Failure creating tarball!");
+    }
+}
+
+fn zip<P: AsRef<Path>>(out_path: P, files: &[&Path]) {
+    let out_path = out_path.as_ref();
+    if out_path.exists() {
+        std::fs::remove_file(out_path).unwrap();
+    }
+
+    let mut cmd = Command::new("zip");
+
+    // -j: junk-paths
+    cmd.arg("-j");
+    cmd.arg("-q");
+    cmd.arg(out_path);
+
+    for path in files {
+        cmd.arg(path);
+    }
+
+    let mut zip = cmd.spawn().expect("Failed to execute `zip` command");
+    let result = zip.wait().expect("Failed to wait for zip to exit");
+
+    if !result.success() {
+        panic!("Failure creating zip archive!");
+    }
+}
+
+pub fn is_wsl() -> bool {
+    if cfg!(target_os = "linux") {
+        // WSLv1: "Linux version ... Microsoft ..."
+        // WSLv2: "Linux version ... microsoft-standard-WSL2 ..."
+        if let Ok(version) = std::fs::read_to_string("/proc/version") {
+            let version = version.to_lowercase();
+            return version.contains("microsoft") || version.contains("wsl");
+        }
+    }
+    false
+}
+
+pub fn is_gnu_libc() -> bool {
+    match Command::new("ldd").arg("--version").output() {
+        Err(_) => false,
+        Ok(result) => String::from_utf8_lossy(&result.stdout).contains("GLIBC")
+    }
+}
+
+fn default_target_triple() -> String {
+    let output = Command::new("rustc")
+        .arg("-vV")
+        .output()
+        .expect("Could not execute `rustc`");
+    let output = String::from_utf8_lossy(&output.stdout);
+
+    output
+        .lines()
+        .filter_map(|line| line.strip_prefix("host: "))
+        .next()
+        .expect("Could not find host triple field in `rustc -vV` output")
+        .to_string()
+}
+
+// vim: set ft=rust :
