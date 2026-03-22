@@ -132,10 +132,10 @@ fn main() {
         )
         .arg(
             Arg::new("version")
-                .global(true)
                 .short('V')
                 .long("version")
-                .help("Display version info")
+                .help("Display version info ('--version' for detailed version info)")
+                .long_help("Display version info ('-V' for minimal version)")
                 .num_args(0)
                 .action(ArgAction::SetTrue),
         )

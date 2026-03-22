@@ -65,11 +65,11 @@ Options:
   -k, --key <KEYFILE>
           Use key stored at path KEYFILE.
 
+  -V, --version
+          Display version info ('-V' for minimal version)
+
   -h, --help
           Print help (see a summary with '-h')
-
-  -V, --version
-          Print version
 ```
 
 A long-form version of the help may be seen by executing `ssclient --help`, while help for the individual
