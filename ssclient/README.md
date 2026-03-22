@@ -73,7 +73,7 @@ Options:
 ```
 
 A long-form version of the help may be seen by executing `ssclient --help`, while help for the individual
-commands may be obtained by running `ssclient help [create|set|get|delete]`
+commands may be obtained by running `ssclient help [create|set|get|delete|export-key]`
 
 The command line interface has been optimized to reduce friction when working with secrets, it
 should be ~~a joy~~ easy to manage secrets for a new or existing projects, and developers
