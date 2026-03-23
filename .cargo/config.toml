@@ -4,3 +4,11 @@ rustflags = [
   "-C",
   "target-feature=+crt-static",
 ]
+
+# Add /usr/pkg/lib to the library search path on NetBSD
+# so linking against a `pkg`-installed openssl works.
+[target.x86_64-unknown-netbsd]
+rustflags = [
+  "-C",
+  "link-args=-Wl,-rpath,/usr/pkg/lib",
+]
