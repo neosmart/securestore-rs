@@ -73,6 +73,14 @@ mod shared;
 #[cfg(test)]
 mod tests;
 
+#[doc(hidden)]
+/// The configured crypto backend in use
+pub const BACKEND: &'static str = crypto_backend();
+
+#[doc(hidden)]
+/// The securestore crate version
+pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 use self::shared::{CryptoKeys, EncryptedBlob, Vault};
 use crate::crypto::{pbkdf2_hmac_sha1, rand_bytes};
 pub use crate::errors::{Error, ErrorKind};
@@ -511,9 +519,8 @@ impl<'a> KeySource<'a> {
     }
 }
 
-#[doc(hidden)]
 /// Returns the configured crypto backend
-pub fn build_crypto_backend() -> String {
+const fn crypto_backend() -> &'static str {
     let variant = if cfg!(feature = "openssl-vendored") {
         "openssl-static"
     } else if cfg!(feature = "openssl") {
@@ -524,26 +531,14 @@ pub fn build_crypto_backend() -> String {
         panic!("Unknown build variant!");
     };
 
-    variant.to_string()
+    variant
 }
 
 #[doc(hidden)]
-/// Returns version info for the library itself and some of its dependencies
-pub fn build_version_info() -> String {
-    let variant = if cfg!(feature = "openssl-vendored") {
-        "openssl-static"
-    } else if cfg!(feature = "openssl") {
-        "openssl"
-    } else if cfg!(feature = "rustls") {
-        "rustls"
-    } else {
-        panic!("Unknown build variant!");
-    };
-
-    #[cfg(feature = "openssl")]
-    let extra = format!(" ({})", openssl::version::version());
-    #[cfg(not(feature = "openssl"))]
-    let extra = format!(" ({})", env!("DEP_VERSIONS"));
-
-    format!("{}/{variant}{extra}", env!("CARGO_PKG_VERSION"))
+#[cfg(feature = "openssl")]
+/// Gets the OpenSSL version being used. Effectively baked into the library for
+/// static builds with the `openssl-vendored` feature or retrieved dynamically
+/// at runtime otherwise.
+pub fn openssl_version() -> &'static str {
+    openssl::version::version()
 }

@@ -3,7 +3,11 @@ use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 fn main() {
-    let versions = get_dep_versions(HashSet::from([
+    #[cfg(feature = "openssl")]
+    let deps = ["openssl"];
+
+    #[cfg(not(feature = "openssl"))]
+    let deps = [
         "aes",
         "cbc",
         "getrandom",
@@ -11,7 +15,9 @@ fn main() {
         "pbkdf2",
         "sha1",
         "subtle",
-    ]));
+    ];
+
+    let versions = get_dep_versions(HashSet::from(deps));
 
     let version_string = versions
         .iter()
@@ -19,7 +25,9 @@ fn main() {
         .collect::<Vec<_>>()
         .join(", ");
 
-    println!("cargo:rustc-env=DEP_VERSIONS={}", version_string);
+    println!("cargo:rustc-env=CRYPTO_VERSIONS={}", version_string);
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=../Cargo.lock");
 }
 
 fn get_dep_versions(mut deps: HashSet<&str>) -> Vec<(String, String)> {

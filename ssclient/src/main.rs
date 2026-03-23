@@ -441,14 +441,18 @@ fn main() {
 }
 
 fn print_version_info(short: bool) {
-    let variant = securestore::build_crypto_backend();
+    let variant = securestore::BACKEND;
 
     let client_version = env!("CARGO_PKG_VERSION");
     println!("ssclient {client_version}/{variant}");
 
     if !short {
-        let lib_version = securestore::build_version_info();
-        println!("SecureStore {lib_version}");
+        let lib_version = securestore::VERSION;
+        #[cfg(feature = "rustls")]
+        let dep_versions = env!("CRYPTO_VERSIONS");
+        #[cfg(feature = "openssl")]
+        let dep_versions = securestore::openssl_version();
+        println!("SecureStore {lib_version} ({dep_versions})");
     }
 }
 
