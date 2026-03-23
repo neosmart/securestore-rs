@@ -543,7 +543,7 @@ pub fn build_version_info() -> String {
     #[cfg(feature = "openssl")]
     let extra = format!(" ({})", openssl::version::version());
     #[cfg(not(feature = "openssl"))]
-    let extra = String::new();
+    let extra = format!(" ({})", env!("DEP_VERSIONS"));
 
     format!("{}/{variant}{extra}", env!("CARGO_PKG_VERSION"))
 }
