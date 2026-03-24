@@ -131,3 +131,19 @@ fn str_as_generic_keysource() {
     // We just want to verify that this compiles, we don't test the result here.
     let _ = SecretsManager::load("secrets.json", "secrets.key");
 }
+
+#[test]
+fn password_derive() {
+    let password = b"password123";
+    let salt = [0u8; 16];
+    let mut output = [0u8; 20];
+    crate::crypto::pbkdf2_hmac_sha1(
+        password,
+        &salt,
+        crate::shared::PBKDF2_ROUNDS as u32,
+        &mut output,
+    );
+
+    let expected = radix64::STD.decode("U5GGvWc15H96NUzIF1cDdy82mJU=").unwrap();
+    assert_eq!(output.as_slice(), &expected);
+}
