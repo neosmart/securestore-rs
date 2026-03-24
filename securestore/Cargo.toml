@@ -56,7 +56,3 @@ default = [ "openssl" ]
 openssl = [ "dep:openssl" ]
 openssl-vendored = [ "openssl/vendored" ]
 rustls = [ "dep:getrandom", "dep:aes", "dep:cbc", "dep:hmac", "dep:sha1", "dep:pbkdf2", "dep:subtle" ]
-
-[dev-dependencies]
-# `tempfile` is used in the tests to simplify cleanup
-tempfile = "3.10.1"

@@ -1,15 +1,15 @@
 //! Highest-level tests for the secure store
 
+use super::TempFile;
 use crate::errors::ErrorKind;
 use crate::{KeySource, SecretsManager};
-use tempfile::NamedTempFile;
 
 /// Verify that basic storage and retrieval of secrets functions correctly.
 #[test]
 fn basic_store_get() {
     // Create a new secrets manager with a known secret so we don't need to muck
     // around with keyfiles later.
-    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
+    let secrets_path = TempFile::new();
     let mut sman = SecretsManager::new(KeySource::Password("mysecret")).unwrap();
 
     // Make sure that we can set values in different &str/String types
@@ -30,7 +30,7 @@ fn basic_store_get() {
 
 #[test]
 fn wrong_password() {
-    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
+    let secrets_path = TempFile::new();
     let mut sman = SecretsManager::new(KeySource::Password("mysecret")).unwrap();
 
     // Set something
@@ -56,8 +56,8 @@ fn secret_not_found() {
 
 #[test]
 fn csprng_export() {
-    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
-    let key_path = NamedTempFile::new().unwrap().into_temp_path();
+    let secrets_path = TempFile::new();
+    let key_path = TempFile::new();
 
     {
         let mut sman = SecretsManager::new(KeySource::Csprng).unwrap();
@@ -73,8 +73,8 @@ fn csprng_export() {
 
 #[test]
 fn password_export() {
-    let secrets_path = NamedTempFile::new().unwrap().into_temp_path();
-    let key_path = NamedTempFile::new().unwrap().into_temp_path();
+    let secrets_path = TempFile::new();
+    let key_path = TempFile::new();
 
     {
         let mut sman = SecretsManager::new(KeySource::Password("password123")).unwrap();
@@ -91,7 +91,7 @@ fn password_export() {
 
 #[test]
 fn invalid_key_file() {
-    let key_path = NamedTempFile::new().unwrap().into_temp_path();
+    let key_path = TempFile::new();
 
     match SecretsManager::new(KeySource::File(key_path)) {
         Ok(_) => panic!("SecretsManager loaded with invalid key file!"),

@@ -1,8 +1,8 @@
+use super::TempFile;
 use crate::crypto::rand_bytes;
 use crate::shared::*;
 use crate::*;
 use std::io::Read;
-use tempfile::NamedTempFile;
 
 /// Verifies that exporting keys derived from a password results in keys
 /// dependent on the IV.
@@ -33,8 +33,8 @@ fn key_derivation_iv() {
 /// file.
 #[test]
 fn buffer_key_source() {
-    let vault = NamedTempFile::new().unwrap().into_temp_path();
-    let keyfile = NamedTempFile::new().unwrap().into_temp_path();
+    let vault = TempFile::new();
+    let keyfile = TempFile::new();
 
     // Create a vault, write to it, and export it and its keys
     let mut sman = SecretsManager::new(KeySource::Csprng).unwrap();
