@@ -11,12 +11,14 @@ homepage = "http://neosmart.net/blog/2020/securestore-open-secrets-format/"
 repository = "https://github.com/neosmart/securestore-rs/tree/master/securestore"
 
 [dependencies]
-atty = "0.2.14"
 radix64 = "0.6.2"
 clap = "4.6.0"
-getch = "0.3.1"
 securestore = { path = "../securestore", version = "0.100.0", default-features = false }
 serde_json = "1.0.114"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+atty = "0.2.14"
+getch = "0.3.1"
 
 [features]
 default = [ "openssl" ]

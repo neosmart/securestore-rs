@@ -5,12 +5,10 @@ use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, Command};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const ENOENT: i32 = 2;
 const EEXIST: i32 = 17;
-const STATUS_CONTROL_C_EXIT: i32 = 0xC000013Au32 as i32;
 
 /// Determines how many parent paths to check when determining whether the key
 /// file is under VCS control or not.
@@ -50,8 +48,18 @@ enum VcsType {
     Git,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn stdin_is_tty() -> bool {
+    atty::is(atty::Stream::Stdin)
+}
+
+#[cfg(not(not(target_arch = "wasm32")))]
+fn stdin_is_tty() -> bool {
+    true
+}
+
 fn main() {
-    let is_tty = atty::is(atty::Stream::Stdin);
+    let is_tty = stdin_is_tty();
 
     let no_vcs = Arg::new("no_vcs")
         .long("no-vcs")
@@ -589,7 +597,7 @@ fn run(
         }
         Mode::Set(key, None) => {
             write_store = true;
-            let is_tty = atty::is(atty::Stream::Stdin);
+            let is_tty = stdin_is_tty();
             if is_tty {
                 eprint!("Value: ");
             }
@@ -625,7 +633,7 @@ fn run(
 }
 
 fn confirm<S: AsRef<str>>(prompt: S) -> bool {
-    let is_tty = atty::is(atty::Stream::Stdin);
+    let is_tty = stdin_is_tty();
     if !is_tty {
         return true;
     }
@@ -644,13 +652,17 @@ fn confirm<S: AsRef<str>>(prompt: S) -> bool {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn read_masked(mask_input: bool) -> String {
+    use std::io::Write;
+
+    const STATUS_CONTROL_C_EXIT: i32 = 0xC000013Au32 as i32;
+
     const CTRL_C: u8 = 0x03; // ASCII ETX on Windows
     const BKSPC: u8 = 0x08;
     const BKSPC_TERMIOS: u8 = 0x7F;
 
-    let mut input = String::new();
-    input.reserve(16);
+    let mut input = String::with_capacity(16);
     let stderr = std::io::stderr();
     let mut stderr = stderr.lock();
     loop {
@@ -688,7 +700,25 @@ fn read_masked(mask_input: bool) -> String {
         }
     }
 
-    input
+    if input.trim().len() != input.len() {
+        input.trim().to_owned()
+    } else {
+        input
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_masked(_mask_input: bool) -> String {
+    use std::io::BufRead;
+
+    let mut input = String::with_capacity(16);
+    let mut stdin = std::io::stdin().lock();
+    stdin.read_line(&mut input).unwrap();
+    if input.trim().len() != input.len() {
+        input.trim().to_owned()
+    } else {
+        input
+    }
 }
 
 fn read() -> String {
