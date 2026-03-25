@@ -5,6 +5,7 @@ use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, Command};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const ENOENT: i32 = 2;
@@ -413,12 +414,10 @@ fn main() {
         KeySource::Path(keyfile)
     } else if is_tty {
         loop {
-            eprint!("Password: ");
-            password = secure_read();
+            password = secure_read("Password: ");
 
             if matches!(mode, Mode::Create { .. }) {
-                eprint!("Confirm password: ");
-                let password2 = secure_read();
+                let password2 = secure_read("Confirm password: ");
                 if password != password2 {
                     continue;
                 }
@@ -653,14 +652,16 @@ fn confirm<S: AsRef<str>>(prompt: S) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn read_masked(mask_input: bool) -> String {
-    use std::io::Write;
-
+fn read_masked(mask_input: bool, prompt: &str) -> String {
     const STATUS_CONTROL_C_EXIT: i32 = 0xC000013Au32 as i32;
 
     const CTRL_C: u8 = 0x03; // ASCII ETX on Windows
     const BKSPC: u8 = 0x08;
     const BKSPC_TERMIOS: u8 = 0x7F;
+
+    if !prompt.is_empty() {
+        eprint!("{prompt}");
+    }
 
     let mut input = String::with_capacity(16);
     let stderr = std::io::stderr();
@@ -708,12 +709,24 @@ fn read_masked(mask_input: bool) -> String {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn read_masked(_mask_input: bool) -> String {
+fn read_masked(mask_input: bool, prompt: &str) -> String {
     use std::io::BufRead;
+
+    if !prompt.is_empty() {
+        eprint!("{prompt}");
+    }
 
     let mut input = String::with_capacity(16);
     let mut stdin = std::io::stdin().lock();
     stdin.read_line(&mut input).unwrap();
+    if mask_input {
+        // Clear the previous line then reprint the prompt plus the masked input
+        // to emulate secure read.
+        let masked: String = input.chars().map(|_| '*').collect();
+        let _ = std::io::stderr().write_all("\u{001b}[1A\r\u{001b}[K".as_bytes());
+        eprintln!("{prompt}{masked}");
+    }
+
     if input.trim().len() != input.len() {
         input.trim().to_owned()
     } else {
@@ -722,11 +735,11 @@ fn read_masked(_mask_input: bool) -> String {
 }
 
 fn read() -> String {
-    read_masked(false)
+    read_masked(false, "")
 }
 
-fn secure_read() -> String {
-    read_masked(true)
+fn secure_read(prompt: &str) -> String {
+    read_masked(true, prompt)
 }
 
 /// Determines whether a path is under VCS control, and if so, what that VCS is.
