@@ -24,8 +24,14 @@ fn main() {
         .map(|(dep, ver)| format!("{dep}@{ver}"))
         .collect::<Vec<_>>()
         .join(", ");
-
     println!("cargo:rustc-env=CRYPTO_VERSIONS={}", version_string);
+
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    println!("cargo:rustc-env=CARGO_TARGET_OS={}", target_os);
+
+    let target_tuple = std::env::var("TARGET").unwrap();
+    println!("cargo:rustc-env=CARGO_TARGET={}", target_tuple);
+
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../Cargo.lock");
 }

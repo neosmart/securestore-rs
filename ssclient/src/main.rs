@@ -451,7 +451,9 @@ fn print_version_info(short: bool) {
     let variant = securestore::BACKEND;
 
     let client_version = env!("CARGO_PKG_VERSION");
-    println!("ssclient {client_version}/{variant}");
+    let target_tuple = env!("CARGO_TARGET");
+    let target_os = env!("CARGO_TARGET_OS");
+    println!("ssclient {client_version}/{variant} ({target_os}/{target_tuple})");
 
     if !short {
         let lib_version = securestore::VERSION;
