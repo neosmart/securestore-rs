@@ -1,7 +1,9 @@
-#!/usr/bin/env -S node --experimental-wasi-unstable-preview1
+#!/usr/bin/env node
 
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from 'node:url';
+import { readFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,9 +26,34 @@ if (process && process.emitWarning) {
 }
 
 // Import WASI dynamically to ensure our ExperimentalWarning intercept takes place first
-const { WASI } = await import("node:wasi");
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+// Also figure out if we need to relaunch with a flag for compatibility with older node versions.
+
+/** @type {typeof import("node:wasi").WASI} */
+let WASI;
+try {
+  const wasiModule = await import("node:wasi");
+  WASI = wasiModule.WASI;
+} catch (e) {
+  // If we can't import it, we need the --experimental-wasi-unstable-preview1 flag.
+  const scriptPath = fileURLToPath(import.meta.url);
+
+  if (process.argv.find(arg => arg === "--experimental-wasi-unstable-preview1")) {
+    // Already tried launching with this flag and it didn't work
+    console.error(`Unable to load WASI module: ${e}`);
+    process.exit(1);
+  }
+
+  // Re-spawn the current process with the flag enabled
+  const child = spawn(
+    process.execPath,
+    ["--experimental-wasi-unstable-preview1", scriptPath, ...process.argv.slice(2)],
+    { stdio: "inherit" }
+  );
+
+  child.on("exit", (code) => process.exit(code ?? 0));
+  // Block indefinitely until child has exited
+  await new Promise(() => {});
+}
 
 /**
  * @param {string} payload - Path to the WASM binary

@@ -35,8 +35,8 @@ const PKG_ROOT = __dirname;
 const FALLBACK_JS = join(PKG_ROOT, "ssclient.js");
 const BASE_BIN_DIR = join(PKG_ROOT, "bin");
 const VERSION = pkg.version;
-const VERSIONED_DIR = join(BASE_BIN_DIR, `${BIN_NAME}-v${VERSION}`);
-const ENTRY_POINT = join(BASE_BIN_DIR, process.platform === "win32" ? `${BIN_NAME}.exe` : BIN_NAME);
+const VERSIONED_DIR = join(BASE_BIN_DIR, `v${VERSION}`);
+const ENTRY_POINT = join(__dirname, pkg.bin[BIN_NAME]);
 
 /** @returns {string} */
 function getPlatformTuple() {
@@ -190,38 +190,22 @@ async function extractRelease(archivePath, binPath) {
  * @param {string} linkPath
  */
 async function linkBinary(target, linkPath) {
-  if (existsSync(linkPath)) {
-    try {
-      await unlink(linkPath);
-    } catch (err) {
-      console.error(`Failed to remove existing binary: ${err}`);
-      throw err;
-    }
+  try {
+    // Don't check if it exists first because we need to also remove broken symlinks
+    await unlink(linkPath);
+  } catch (err) {
+    console.error(`Failed to remove existing binary: ${err}`);
+    throw err;
   }
 
   const rel = relative(dirname(linkPath), target);
   if (process.platform === "win32") {
-    // Windows: Try relative symlink, fallback to copy
-    try {
-      await symlink(rel, linkPath, "file");
-    } catch (err) {
-      // console.warn(`Failed to create binary symlink (${err}); falling back to file copy`);
-      await copyFile(target, linkPath);
-    }
+    const runner = `@ECHO OFF\nSETLOCAL\n"%~dp0${rel}" %*`;
+    await writeFile(linkPath, runner, "utf8");
   } else {
     // *nix: Always create relative symlink
     await symlink(rel, linkPath);
     await chmod(target, 0o755);
-  }
-
-  if (process.platform === "win32") {
-    // Prevent conflict between old .cmd wasm runner and native .exe
-    if (!linkPath.endsWith(".cmd")) {
-      const cmdPath = linkPath.replace(/.exe$/, "") + ".cmd";
-      if (existsSync(cmdPath)) {
-        await unlink(cmdPath);
-      }
-    }
   }
 }
 
@@ -229,7 +213,7 @@ async function removeOldVersions() {
   const items = await readdir(BASE_BIN_DIR);
   const currentName = basename(VERSIONED_DIR);
   for (const item of items) {
-    if (item.startsWith(`${BIN_NAME}-v`) && item !== currentName) {
+    if (item.startsWith(`v`) && item !== currentName) {
       await rm(join(BASE_BIN_DIR, item), { recursive: true, force: true }).catch(() => {});
     }
   }
@@ -318,17 +302,20 @@ async function main() {
 
     console.info(`Falling back to wasm ${BIN_NAME}...`);
 
+    if (existsSync(ENTRY_POINT)) {
+      await unlink(ENTRY_POINT);
+    }
     if (process.platform !== "win32") {
       await linkBinary(FALLBACK_JS, ENTRY_POINT);
     } else {
-      // If target.exe exists, we need to remove it so it doesn't conflict with target.cmd
-      if (existsSync(ENTRY_POINT)) {
-        await unlink(ENTRY_POINT);
-      }
-
-      const runner = `@ECHO OFF\nSETLOCAL\nnode --experimental-wasi-unstable-preview1 "${FALLBACK_JS}" %*`;
-      const path = ENTRY_POINT.replace(/.exe$/, "") + ".cmd";
-      await writeFile(path, runner, "utf8");
+      const rel = relative(dirname(ENTRY_POINT), FALLBACK_JS);
+      console.debug({
+        rel,
+          ENTRY_POINT,
+          FALLBACK_JS,
+      });
+      const runner = `@ECHO OFF\nSETLOCAL\nnode --experimental-wasi-unstable-preview1 "%~dp0${rel}" %*`;
+      await writeFile(ENTRY_POINT, runner, "utf8");
     }
   }
 }

@@ -21,7 +21,7 @@
   },
   "funding": "https://mqudsi.com/donate/",
   "bin": {
-    "ssclient": "./ssclient.js"
+    "ssclient": "bin/ssclient.cmd"
   },
   "private": true,
   "type": "module",
