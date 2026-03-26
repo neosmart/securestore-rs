@@ -1,0 +1,39 @@
+{
+  "name": "npm",
+  "description": "SecureStore cli client, cross-platform and sandboxed",
+  "version": "2.0.0",
+  "keywords": [
+    "SecureStore",
+    "encryption",
+    "secrets"
+  ],
+  "homepage": "https://neosmart.net/SecureStore/",
+  "bugs": "https://github.com/neosmart/securestore-rs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/neosmart/securestore-rs"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Mahmoud Al-Qudsi",
+    "email": "mqudsi@neosmart.net",
+    "url": "https://github.com/mqudsi"
+  },
+  "funding": "https://mqudsi.com/donate/",
+  "bin": {
+    "ssclient": "./ssclient.js"
+  },
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install": "node ./install.js",
+    "ssclient": "node ./ssclient.js"
+  },
+  "dependencies": [],
+  "devDependecies": [
+    "@types/node"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}
