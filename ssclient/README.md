@@ -192,7 +192,7 @@ defaults to `secrets.json` and the mode of encryption/decryption can be picked w
 
 While the `ssclient` interface to a SecureStore vault only supports saving text-based secrets to a
 vault, the SecureStore API can be used (e.g. via [securestore](https://github.com/neosmart/securestore-rs)
-or (SecureStore.NET)[https://github.com/neosmart/SecureStore]) to store binary secrets to a vault.
+or [SecureStore.NET](https://github.com/neosmart/SecureStore)) to store binary secrets to a vault.
 `ssclient` can retrieve these binary secrets and will return them as base64-encoded strings prefixed
 with `base64:`, e.g. `base64:cGFzc3dvcmQ=`.
 
@@ -250,7 +250,7 @@ Password: ********
 ## License and Copyright
 
 `ssclient` was created by Mahmoud Al-Qudsi of NeoSmart Technologies, and is Copyright NeoSmart
-Technologies 2019-2022. `ssclient` is released to the general public without any warranty in the
+Technologies 2019-2026. `ssclient` is released to the general public without any warranty in the
 hopes that it might be beneficial, dually licensed (at your choosing) under the MIT and Apache
 2.0 public licenses.
 
