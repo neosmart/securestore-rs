@@ -11,7 +11,7 @@
   "bugs": "https://github.com/neosmart/securestore-rs",
   "repository": {
     "type": "git",
-    "url": "https://github.com/neosmart/securestore-rs"
+    "url": "git+https://github.com/neosmart/securestore-rs.git"
   },
   "license": "MIT",
   "author": {
@@ -23,11 +23,10 @@
   "bin": {
     "ssclient": "bin/ssclient.cmd"
   },
-  "private": true,
   "type": "module",
   "scripts": {
     "prepublishOnly": "npm run lint",
-    "prepare": "echo '' > bin/ssclient.cmd",
+    "prepare": "echo 'This placeholder file will be overridden by our install scripts' > bin/ssclient.cmd",
     "install": "node ./install.js",
     "ssclient": "node ./ssclient.js",
     "lint": "tsc"
