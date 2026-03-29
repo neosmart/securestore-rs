@@ -14,6 +14,7 @@ const cargoRoot = path.resolve(__dirname, '..', '..');
 const srcWasm = path.resolve(cargoRoot, 'target/wasm32-wasip1/release/ssclient.wasm');
 const dstDir = path.resolve(__dirname, 'bin');
 const dstWasm = path.resolve(dstDir, 'ssclient.wasm');
+const ssclient = path.resolve(__dirname, 'ssclient.js');
 
 /**
  * Helper to exit with a non-zero status code
@@ -76,4 +77,12 @@ try {
   // @ts-ignore
   const error = err;
   die(`File operation failed: ${error.message}`);
+}
+
+// Ensure ssclient.js runs ok
+const wasmResult = spawnSync('node', [ssclient, "--version"]);
+if (wasmResult.error) {
+  die(`Failed to execute ssclient.wasm (via ssclient.js): ${wasmResult.error.message}`);
+} else if (wasmResult.status !== 0) {
+  die(`ssclient.wasm failed with exit code ${wasmResult.status}`);
 }
