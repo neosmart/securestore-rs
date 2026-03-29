@@ -79,7 +79,7 @@ fn main() {
     let mut cmd = Command::new("SecureStore")
         .disable_version_flag(true)
         .author(concat!(
-            "Copyright NeoSmart Technologies 2018-2022.\n",
+            "Copyright NeoSmart Technologies 2018-2026.\n",
             "Developed by Mahmoud Al-Qudsi and SecureStore contributors"
         ))
         .about(concat!(
