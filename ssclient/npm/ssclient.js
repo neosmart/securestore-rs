@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // const WASM_FILE = "../target/wasm32-wasip1/debug/ssclient.wasm";
-const WASM_FILE = join(__dirname, "../target/wasm32-wasip1/release/ssclient.wasm");
+const WASM_FILE = join(__dirname, "../../target/wasm32-wasip1/release/ssclient.wasm");
 
 // Silence node warnings about WASI being in preview, as we test functionality ourselves
 if (process && process.emitWarning) {

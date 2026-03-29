@@ -28,8 +28,12 @@ const __dirname = dirname(__filename);
  * @property {Record<string, string | string[] | BuildEntry>} precompiled - Mapping of os-arch to builds
  */
 
-// const MANIFEST_URL = "https://example.com/releases.json";
-const MANIFEST_URL = "./manifest.json";
+const MANIFEST_URLS = [
+  `${__dirname}/manifest.json`,
+  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${pkg.version}.json`,
+  `https://neosmart.net/SecureStore/ssclient/npm/manifests/v${pkg.version}.json`,
+  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/tags/ssclient/${pkg.version}/ssclient/npm/manifests/v${pkg.version}.json`,
+];
 const BIN_NAME = "ssclient";
 const PKG_ROOT = __dirname;
 const FALLBACK_JS = join(PKG_ROOT, "ssclient.js");
@@ -259,7 +263,17 @@ async function main() {
     console.log("Fetching manifest...");
 
     /** @type {Manifest} */
-    const manifest = await resolve(MANIFEST_URL, "json");
+    const manifest = await (async () => {
+      for (const url of MANIFEST_URLS) {
+        try {
+          const manifest = await resolve(url, "json");
+          return manifest;
+        } catch {
+          continue;
+        }
+      }
+      throw new Error("Unable to load application manifest");
+    })();
     const tuple = getPlatformTuple();
     const entry = manifest.precompiled[tuple];
 

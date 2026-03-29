@@ -1,5 +1,5 @@
 {
-  "name": "npm",
+  "name": "@neosmart/ssclient",
   "description": "SecureStore cli client, cross-platform and sandboxed",
   "version": "2.0.0",
   "keywords": [
@@ -26,14 +26,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepublishOnly": "npm run lint",
+    "prepare": "echo '' > bin/ssclient.cmd",
     "install": "node ./install.js",
-    "ssclient": "node ./ssclient.js"
+    "ssclient": "node ./ssclient.js",
+    "lint": "tsc"
   },
-  "dependencies": [],
   "devDependecies": [
     "@types/node"
   ],
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "typescript": "^6.0.2"
   }
 }
