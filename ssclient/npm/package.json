@@ -30,20 +30,17 @@
     "./build.js",
     "./install.js",
     "./ssclient.js",
-    "./tsconfig.js"
+    "./tsconfig.json"
   ],
   "type": "module",
   "scripts": {
-    "prepublishOnly": "npm run lint && npm run build",
+    "prepack": "npm run lint && npm run build",
     "prepare": "echo 'This placeholder file will be overridden by our install scripts' > bin/ssclient.cmd",
     "install": "node ./install.js",
     "ssclient": "node ./ssclient.js",
     "build": "node ./build.js",
     "lint": "tsc"
   },
-  "devDependecies": [
-    "@types/node"
-  ],
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^6.0.2"
