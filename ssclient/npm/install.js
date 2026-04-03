@@ -247,6 +247,9 @@ async function resolve(pathOrUrl, result) {
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
     }
+    if (/html/i.test(response.headers.get("content-type") ?? "")) {
+      throw new Error("Unexpected HTML in response!");
+    }
     return result === "text" ? await response.text() : await response.json();
   } else if (existsSync(pathOrUrl)) {
     const text = await readFile(pathOrUrl, { encoding: "utf8" });
