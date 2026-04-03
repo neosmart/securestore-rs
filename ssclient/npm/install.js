@@ -198,8 +198,10 @@ async function linkBinary(target, linkPath) {
     // Don't check if it exists first because we need to also remove broken symlinks
     await unlink(linkPath);
   } catch (err) {
-    console.error(`Failed to remove existing binary: ${err}`);
-    throw err;
+    if (existsSync(linkPath)) {
+      console.error(`Failed to remove existing binary: ${err}`);
+      throw err;
+    }
   }
 
   const rel = relative(dirname(linkPath), target);
