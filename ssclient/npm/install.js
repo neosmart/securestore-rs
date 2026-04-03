@@ -28,10 +28,11 @@ const __dirname = dirname(__filename);
  * @property {Record<string, string | string[] | BuildEntry>} precompiled - Mapping of os-arch to builds
  */
 
-const VERSION = pkg.version.replace(/\+.*/, "");
+const VERSION = pkg.version.replace(/[+-].*/, "");
 const MANIFEST_URLS = [
   `${__dirname}/manifest.json`,
-  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${VERSION}.json`,
+  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${pkg.version}.json`,
+    `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${VERSION}.json`,
   `https://neosmart.net/SecureStore/ssclient/npm/manifests/v${VERSION}.json`,
 ];
 const BIN_NAME = "ssclient";
@@ -268,8 +269,14 @@ async function main() {
 
     /** @type {Manifest} */
     const manifest = await (async () => {
+      /** @type {string | undefined} */
+      let last;
       for (const url of MANIFEST_URLS) {
+        if (url === last) {
+          continue;
+        }
         try {
+          last = url;
           const manifest = await resolve(url, "json");
           return manifest;
         } catch {
