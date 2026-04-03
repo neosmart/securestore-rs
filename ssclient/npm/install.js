@@ -28,17 +28,16 @@ const __dirname = dirname(__filename);
  * @property {Record<string, string | string[] | BuildEntry>} precompiled - Mapping of os-arch to builds
  */
 
+const VERSION = pkg.version.replace(/\+.*/, "");
 const MANIFEST_URLS = [
   `${__dirname}/manifest.json`,
-  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${pkg.version}.json`,
-  `https://neosmart.net/SecureStore/ssclient/npm/manifests/v${pkg.version}.json`,
-  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/tags/ssclient/${pkg.version}/ssclient/npm/manifests/v${pkg.version}.json`,
+  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${VERSION}.json`,
+  `https://neosmart.net/SecureStore/ssclient/npm/manifests/v${VERSION}.json`,
 ];
 const BIN_NAME = "ssclient";
 const PKG_ROOT = __dirname;
 const FALLBACK_JS = join(PKG_ROOT, "ssclient.js");
 const BASE_BIN_DIR = join(PKG_ROOT, "bin");
-const VERSION = pkg.version;
 const VERSIONED_DIR = join(BASE_BIN_DIR, `v${VERSION}`);
 const ENTRY_POINT = join(__dirname, pkg.bin[BIN_NAME]);
 
