@@ -34,7 +34,7 @@ fn main() {
 
     if cfg!(target_os = "linux") {
         built = true;
-        let bin = build(name, "x86_64-unknown-linux-musl", true);
+        let bin = build(name, "x86_64-unknown-linux-musl", true).unwrap();
         tar(
             format!("{name}-linux-x86_64-{version}.tar.gz"),
             &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
@@ -43,18 +43,27 @@ fn main() {
 
     if cfg!(target_os = "windows") || is_wsl() {
         built = true;
-        let bin = build(name, "x86_64-pc-windows-msvc", true);
+        let bin = build(name, "x86_64-pc-windows-msvc", true).unwrap();
         zip(
             format!("{name}-windows-x86_64-{version}.zip"),
             &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
         );
     }
 
+    if let Ok(bin) = build(name, "wasm32-wasip1", false) {
+        zip(
+            format!("{name}-wasm32-wasip1-{version}.zip"),
+            &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
+        );
+    } else {
+        eprintln!("Could not build wasm32-wasip1 target!");
+    }
+
     // Platform/toolchain default
     if !built {
         let target = default_target_triple();
         let static_build = !is_gnu_libc();
-        let bin = build(name, &target, static_build);
+        let bin = build(name, &target, static_build).unwrap();
         tar(
             format!("{name}-{target}-{version}.tar.gz"),
             &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
@@ -62,7 +71,7 @@ fn main() {
     }
 }
 
-fn build(name: &str, target: &str, crt_static: bool) -> PathBuf {
+fn build(name: &str, target: &str, crt_static: bool) -> Result<PathBuf, String> {
     eprintln!("> Building for {target}");
     let cargo = if target.contains("windows") {
         "cargo.exe"
@@ -93,24 +102,27 @@ fn build(name: &str, target: &str, crt_static: bool) -> PathBuf {
 
     let result = cargo.wait().expect("Failed to wait on child cargo!");
     if !result.success() {
-        panic!("Failed to build package!");
+        return Err(format!("Failed to build {target} package!"));
     }
 
     let mut path = PathBuf::from(format!("target/{target}/release/{name}"));
     if target.contains("windows") {
         path.set_extension("exe");
+    } else if target.contains("wasm32") {
+        path.set_extension("wasm");
     }
     if !path.exists() {
-        panic!("Cannot locate built binary!");
+        return Err(format!("Cannot locate built {target} binary!"));
     }
     let path = std::fs::canonicalize(path).unwrap();
 
-    if !target.contains("windows") {
+    if !target.contains("windows") && !target.contains("wasm") {
         strip(&path);
-    } else {
+    } else if target.contains("windows") {
         let _ = try_sign(&path);
     }
-    path
+
+    Ok(path)
 }
 
 fn strip(path: &Path) {
