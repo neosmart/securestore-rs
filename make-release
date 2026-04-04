@@ -20,12 +20,11 @@ struct Package {
 
 #[derive(serde::Deserialize)]
 struct Manifest {
-    package: Package
+    package: Package,
 }
 
 fn main() {
-    let manifest = File::open("ssclient/Cargo.toml")
-        .expect("Couldn't find Cargo.toml");
+    let manifest = File::open("ssclient/Cargo.toml").expect("Couldn't find Cargo.toml");
     let manifest = std::io::read_to_string(manifest).unwrap();
     let manifest: Manifest = toml::from_str(&manifest).unwrap();
 
@@ -36,13 +35,19 @@ fn main() {
     if cfg!(target_os = "linux") {
         built = true;
         let bin = build(name, "x86_64-unknown-linux-musl", true);
-        tar(format!("{name}-x86_64-linux-{version}.tar.gz"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+        tar(
+            format!("{name}-x86_64-linux-{version}.tar.gz"),
+            &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
+        );
     }
 
     if cfg!(target_os = "windows") || is_wsl() {
         built = true;
         let bin = build(name, "x86_64-pc-windows-msvc", true);
-        zip(format!("{name}-x86_64-windows-{version}.zip"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+        zip(
+            format!("{name}-x86_64-windows-{version}.zip"),
+            &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
+        );
     }
 
     // Platform/toolchain default
@@ -50,14 +55,25 @@ fn main() {
         let target = default_target_triple();
         let static_build = !is_gnu_libc();
         let bin = build(name, &target, static_build);
-        tar(format!("{name}-{target}-{version}.tar.gz"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+        tar(
+            format!("{name}-{target}-{version}.tar.gz"),
+            &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
+        );
     }
 }
 
 fn build(name: &str, target: &str, crt_static: bool) -> PathBuf {
     eprintln!("> Building for {target}");
-    let cargo = if target.contains("windows") { "cargo.exe" } else { "cargo" };
-    let crt_static = if crt_static { "-Ctarget-feature=+crt-static" } else { "" };
+    let cargo = if target.contains("windows") {
+        "cargo.exe"
+    } else {
+        "cargo"
+    };
+    let crt_static = if crt_static {
+        "-Ctarget-feature=+crt-static"
+    } else {
+        ""
+    };
 
     let mut cargo = Command::new(cargo)
         .env("RUSTFLAGS", format!("{crt_static}"))
@@ -98,10 +114,7 @@ fn build(name: &str, target: &str, crt_static: bool) -> PathBuf {
 }
 
 fn strip(path: &Path) {
-    let result = Command::new("strip")
-        .arg(path)
-        .output()
-        .unwrap();
+    let result = Command::new("strip").arg(path).output().unwrap();
 
     if !result.status.success() {
         panic!("Failed to strip binary");
@@ -109,10 +122,7 @@ fn strip(path: &Path) {
 }
 
 fn try_sign(path: &Path) -> Option<()> {
-    let _ = Command::new("where.exe")
-        .arg("sign.bat")
-        .output()
-        .ok()?;
+    let _ = Command::new("where.exe").arg("sign.bat").output().ok()?;
 
     // A whole song and dance for WSL compatibility
     let cwd = std::env::current_dir().unwrap();
@@ -147,10 +157,14 @@ fn tar<P: AsRef<Path>>(out_path: P, files: &[&Path]) {
     for path in files {
         // We need the absolute path because CWD changes between each -C call
         let path = std::fs::canonicalize(path).unwrap();
-        let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
         let file_name = path.file_name().expect("Path must point to a file");
 
-        // Use -C to switch to file's directory before adding the file to remove folder structure
+        // Use -C to switch to file's directory before adding the file to remove folder
+        // structure
         cmd.arg("-C").arg(parent).arg(file_name);
     }
 
@@ -201,7 +215,7 @@ pub fn is_wsl() -> bool {
 pub fn is_gnu_libc() -> bool {
     match Command::new("ldd").arg("--version").output() {
         Err(_) => false,
-        Ok(result) => String::from_utf8_lossy(&result.stdout).contains("GLIBC")
+        Ok(result) => String::from_utf8_lossy(&result.stdout).contains("GLIBC"),
     }
 }
 
