@@ -36,7 +36,7 @@ fn main() {
         built = true;
         let bin = build(name, "x86_64-unknown-linux-musl", true);
         tar(
-            format!("{name}-x86_64-linux-{version}.tar.gz"),
+            format!("{name}-linux-x86_64-{version}.tar.gz"),
             &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
         );
     }
@@ -45,7 +45,7 @@ fn main() {
         built = true;
         let bin = build(name, "x86_64-pc-windows-msvc", true);
         zip(
-            format!("{name}-x86_64-windows-{version}.zip"),
+            format!("{name}-windows-x86_64-{version}.zip"),
             &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()],
         );
     }
