@@ -69,12 +69,12 @@ Start by installing a copy of `ssclient`, the interactive SecureStore cli. Pre-b
 <pre>
 &gt; cargo install ssclient
 <b><span style="color:#0A0">    Updating</span></b><b><span style="color:#0A0"></span></b> crates.io index
-<b><span style="color:#0A0">  Installing</span></b> ssclient v0.100.0
-<b><span style="color:#0A0">   Compiling</span></b> securestore v0.100.0
-<b><span style="color:#0A0">   Compiling</span></b> ssclient v0.100.0
+<b><span style="color:#0A0">  Installing</span></b> ssclient v2.0.0
+<b><span style="color:#0A0">   Compiling</span></b> securestore v0.100.2
+<b><span style="color:#0A0">   Compiling</span></b> ssclient v2.0.0
 <b><span style="color:#0A0">    Finished</span></b> release [optimized] target(s) in 36.14s
 <b><span style="color:#0A0">  Installing</span></b> /home/mqudsi/.cargo/bin/ssclient
-<b><span style="color:#0A0">   Installed</span></b> package `ssclient v0.100.0` (executable `ssclient`)
+<b><span style="color:#0A0">   Installed</span></b> package `ssclient v2.0.0` (executable `ssclient`)
 </pre>
 
 `ssclient` will be installed and added to the cargo binary directory in your `$PATH`, making it available in a terminal session merely by invoking `ssclient`.
@@ -256,9 +256,9 @@ edition = "2021"
 
 [dependencies]
 once_cell = "1.13.0"
-securestore = "0.100.0"
+securestore = "0.100.2"
 # Optional: use the pure-Rust crypto backend (no OpenSSL)
-# securestore = { version = "0.100.0", default-features = false, features = ["rustls"] }
+# securestore = { version = "0.100.2", default-features = false, features = ["rustls"] }
 ```
 
 After which we can open `src/main.rs` and add some code to open the secrets file and decrypt + retrieve one or more secrets at runtime. [The ssclient documentation](https://docs.rs/securestore/latest/securestore/) covers how the `securestore` crate and its primary `SecretsManager` type are used, but we'll demo the basics below.
