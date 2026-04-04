@@ -32,8 +32,9 @@ const VERSION = pkg.version.replace(/[+-].*/, "");
 const MANIFEST_URLS = [
   `${__dirname}/manifest.json`,
   `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${pkg.version}.json`,
-    `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${VERSION}.json`,
+  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/heads/master/ssclient/npm/manifests/v${VERSION}.json`,
   `https://neosmart.net/SecureStore/ssclient/npm/manifests/v${VERSION}.json`,
+  `https://raw.githubusercontent.com/neosmart/securestore-rs/refs/tags/v${VERSION}/ssclient/npm/manifests/v${VERSION}.json`,
 ];
 const BIN_NAME = "ssclient";
 const PKG_ROOT = __dirname;

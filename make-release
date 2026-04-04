@@ -36,7 +36,7 @@ fn main() {
         built = true;
         let bin = build(name, "x86_64-unknown-linux-musl", true).unwrap();
         tar(
-            format!("{name}-linux-x86_64-{version}.tar.gz"),
+            format!("{name}-{version}-linux-x86_64.tar.gz"),
             &[&bin, "./ssclient/README.md".as_ref(), "./LICENSE".as_ref()],
         );
     }
@@ -45,14 +45,14 @@ fn main() {
         built = true;
         let bin = build(name, "x86_64-pc-windows-msvc", true).unwrap();
         zip(
-            format!("{name}-windows-x86_64-{version}.zip"),
+            format!("{name}-{version}-windows-x86_64.zip"),
             &[&bin, "./ssclient/README.md".as_ref(), "./LICENSE".as_ref()],
         );
     }
 
     if let Ok(bin) = build(name, "wasm32-wasip1", false) {
         zip(
-            format!("{name}-wasm32-wasip1-{version}.zip"),
+            format!("{name}-{version}-wasm32-wasip1.zip"),
             &[&bin, "./ssclient/README.md".as_ref(), "./LICENSE".as_ref()],
         );
     } else {
@@ -65,7 +65,7 @@ fn main() {
         let static_build = !is_gnu_libc();
         let bin = build(name, &target, static_build).unwrap();
         tar(
-            format!("{name}-{target}-{version}.tar.gz"),
+            format!("{name}-{version}-{target}.tar.gz"),
             &[&bin, "./ssclient/README.md".as_ref(), "./LICENSE".as_ref()],
         );
     }
