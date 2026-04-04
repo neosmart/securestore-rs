@@ -36,13 +36,13 @@ fn main() {
     if cfg!(target_os = "linux") {
         built = true;
         let bin = build(name, "x86_64-unknown-linux-musl", true);
-        tar(format!("{name}-x86_64-unknown-linux-musl-{version}.tar.gz"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+        tar(format!("{name}-x86_64-linux-{version}.tar.gz"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
     }
 
     if cfg!(target_os = "windows") || is_wsl() {
         built = true;
         let bin = build(name, "x86_64-pc-windows-msvc", true);
-        zip(format!("{name}-x86_64-pc-windows-msvc-{version}.zip"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+        zip(format!("{name}-x86_64-windows-{version}.zip"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
     }
 
     // Platform/toolchain default
@@ -91,6 +91,8 @@ fn build(name: &str, target: &str, crt_static: bool) -> PathBuf {
 
     if !target.contains("windows") {
         strip(&path);
+    } else {
+        let _ = try_sign(&path);
     }
     path
 }
@@ -104,6 +106,31 @@ fn strip(path: &Path) {
     if !result.status.success() {
         panic!("Failed to strip binary");
     }
+}
+
+fn try_sign(path: &Path) -> Option<()> {
+    let _ = Command::new("where.exe")
+        .arg("sign.bat")
+        .output()
+        .ok()?;
+
+    // A whole song and dance for WSL compatibility
+    let cwd = std::env::current_dir().unwrap();
+    let cwd = cwd.to_str().unwrap();
+    let relative_path = path.to_str().unwrap().replace(cwd, "");
+    let relative_path = relative_path.trim_start_matches('/');
+    let mut sign = Command::new("cmd.exe")
+        .arg("/C")
+        .arg(format!("sign.bat {}", relative_path))
+        .spawn()
+        .expect("Failed to run sign.bat!");
+
+    let result = sign.wait().expect("Failed to wait on sign.bat!");
+    if !result.success() {
+        panic!("Failed to sign binary!");
+    }
+
+    Some(())
 }
 
 fn tar<P: AsRef<Path>>(out_path: P, files: &[&Path]) {
