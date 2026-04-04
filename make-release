@@ -36,7 +36,7 @@ fn main() {
     if cfg!(target_os = "linux") {
         built = true;
         let bin = build(name, "x86_64-unknown-linux-musl", true);
-        tar(format!("{name}-x86_64-unknown-linux-musl-{version}.tar.zst"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+        tar(format!("{name}-x86_64-unknown-linux-musl-{version}.tar.gz"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
     }
 
     if cfg!(target_os = "windows") || is_wsl() {
@@ -50,11 +50,12 @@ fn main() {
         let target = default_target_triple();
         let static_build = !is_gnu_libc();
         let bin = build(name, &target, static_build);
-        tar(format!("{name}-{target}-{version}.tar.zst"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
+        tar(format!("{name}-{target}-{version}.tar.gz"), &[&bin, "./README.md".as_ref(), "./LICENSE".as_ref()]);
     }
 }
 
 fn build(name: &str, target: &str, crt_static: bool) -> PathBuf {
+    eprintln!("> Building for {target}");
     let cargo = if target.contains("windows") { "cargo.exe" } else { "cargo" };
     let crt_static = if crt_static { "-Ctarget-feature=+crt-static" } else { "" };
 
@@ -113,7 +114,7 @@ fn tar<P: AsRef<Path>>(out_path: P, files: &[&Path]) {
 
     let mut cmd = Command::new("tar");
 
-    cmd.args(["--zstd", "-cf"]);
+    cmd.args(["-czf"]);
     cmd.arg(out_path);
 
     for path in files {

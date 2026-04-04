@@ -1,5 +1,5 @@
 target
 **/*.rs.bk
 Cargo.lock
-ssclient-*.tar.gz
+ssclient-*.tar.*
 ssclient-*.zip
