@@ -19,11 +19,23 @@ developed to allow for creating secrets stores and managing their secrets via a 
 
 ## Installation
 
-`ssclient` is published as an installable binary crate on crates.io, and can be installed directly
-via `cargo`, the rust package manager:
+`ssclient` is published as an installable binary crate on crates.io, and can be compiled & installed directly
+via `cargo`, the rust package manager, or from [the releases page](https://github.com/neosmart/securestore-rs/releases) of this project's GitHub repository.
 
 ```bash
 ~> cargo install ssclient
+```
+
+If you're on Windows or otherwise run into errors linking against OpenSSL, you can try compiling and installing `ssclient` with rust-native crypto instead:
+
+```bash
+~> cargo install ssclient --no-default-features --features rustls
+```
+
+You may alternative try to install `ssclient` via `npm` (or your favorite npmjs-compatible package manager) to automatically obtain and install a pre-compiled binary for your platform or, failing that, a universal WASM binary executed via the nodejs runtime:
+
+```bash
+~> npm install --global @neosmart/ssclient
 ```
 
 ## Usage
