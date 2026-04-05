@@ -624,7 +624,7 @@ fn confirm<S: AsRef<str>>(prompt: S) -> bool {
     let is_tty = stdin_is_tty();
     if !is_tty {
         eprint!("{}? [y/N] ", prompt);
-        return true;
+        return false;
     }
 
     // stdin.read_line(..) doesn't give us a way to detect Ctrl+C on Windows
