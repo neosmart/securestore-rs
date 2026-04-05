@@ -3,15 +3,29 @@
 [![crates.io](https://img.shields.io/crates/v/securestore.svg)](https://crates.io/crates/securestore)
 [![docs.rs](https://docs.rs/securestore/badge.svg)](https://docs.rs/crate/securestore)
 
-This crate contains a rusty implementation of [the open SecureStore secrets storage
-protocol](http://neosmart.net/blog/2020/securestore-open-secrets-format/), that can read, write and
-update encrypted password storage files that are designed to be stored alongside your code in your
-GIT repository (or wherever else).
+This crate contains a rusty implementation of [the open SecureStore secrets storage protocol](https://github.com/neosmart/securestore-rs), that can read, write and update encrypted password storage files that are designed to be stored alongside your code in your GIT repository (or wherever else). Implementations are also available [for other languages](https://nesomart.net/SecureStore/).
 
-You can read more about SecureStore [on our
-website](https://neosmart.net/blog/2020/securestore-secrets-storage). The associated command-line
-client for managing the secrets store (creating a new store, adding, removing, and updating secrets)
-can also be found [in this repository](../ssclient/).
+You can read more about SecureStore [on our website](https://neosmart.net/blog/2020/securestore-secrets-storage). The associated command-line client for managing the secrets store (creating a new store, adding, removing, and updating secrets) can also be found [in this repository](../ssclient/).
+
+## Getting started
+
+Add a dependency on `securestore` to your `Cargo.toml`. By default, `securestore` will search for and (dynamically) link against a system installation of OpenSSL, which should work just fine for most \*nix (Linux, macOS, FreeBSD, etc) users:
+
+```toml
+securestore = "0.100"
+```
+
+To use `securestore` with a pure rust stack with no system or C dependencies, you can use the following configuration instead:
+
+```toml
+securestore = { version = "0.100", default-features = false, features = ["rustls"] }
+```
+
+Or to compile and statically link against OpenSSL at build time:
+
+```toml
+securestore = { version = "0.100", features = ["openssl-vendored"] }
+```
 
 ## SecureStore API
 
@@ -27,8 +41,7 @@ runtime.
 
 ## Sample usage
 
-As an example of its usage, including a brief demonstration of `ssclient`, the CLI companion to this
-library (also available via crates.io and installable with `cargo`), can be seen below:
+As an example of its usage, including a brief demonstration of `ssclient`, the CLI companion to this library (also available via crates.io and installable with `cargo`, or installable as a universal wasm binary with `npm install --global @neosmart/ssclient`), can be seen below:
 
 ```bash
 # First, install ssclient, the SecureStore CLI interface
@@ -47,10 +60,7 @@ Confirm password: ***********
 Password: ***********
 ```
 
-Back in the world of code, we can now use the SecureStore API from this crate to interface with the
-secrets file we just created, and selectively decrypt its contents with either the password we used
-at the time the store was created or the in a passwordless manner by means of the keyfile we
-exported that contains the key derived from our password:
+Back in the world of code (after adding `securestore` to `Cargo.toml` as described above), we can now use the SecureStore API from this crate to interface with the secrets file we just created, and selectively decrypt its contents with either the password we used at the time the store was created or the in a passwordless manner by means of the keyfile we exported that contains the key derived from our password:
 
 ```rust
 use securestore::{KeySource, SecretsManager};
@@ -65,9 +75,7 @@ fn get_api_key() -> String {
 }
 ```
 
-The SecureStore API also includes the relevant APIs for creating new stores; adding, removing,
-and updating secrets; exporting keyfiles; and everything else typically done with the `ssclient` CLI
-companion (which is built on this crate for maximum dogfooding).
+The SecureStore API also includes the relevant APIs for creating new stores; adding, removing, and updating secrets; exporting keyfiles; and everything else typically done with the `ssclient` CLI companion (which is built on this crate for maximum dogfooding).
 
 ## Encryption details
 
@@ -88,17 +96,11 @@ passwords, PBKDF2 with 256,000 rounds of SHA1 and a unique seed is used to deriv
 keys; the results of the key-stretching operation are *not* included in the store and are still
 considered to be sensitive data interchangeable with the password itself.
 
-At this time, OpenSSL is used for all cryptographic operations (including CSPRNG), but that may be
-replaced with platform-native dependencies in the future. For more details, please refer to the
-source code.
+By default, OpenSSL is used for all cryptographic operations (including CSPRNG), but that can be changed by opting into the `rustls` feature in your `Cargo.toml` when depending on `securestore` (see directions above). For more details, please refer to the source code.
 
 ## License and authorship
 
-The SecureStore crate was originally developed by Mahmoud Al-Qudsi of NeoSmart Technologies and is
-actively updated and maintained by NeoSmart Technologies and the SecureStore contributors. The
-SecureStore crate is released under a dual MIT and Apache 2.0 License. Any contributions to this
-crate are assumed to be licensed likewise; contributions not under the both of these licenses are
-not being accepted at this time.
+The SecureStore crate was originally developed by Mahmoud Al-Qudsi of NeoSmart Technologies and is actively updated and maintained by NeoSmart Technologies and the SecureStore contributors. The SecureStore crate is released under a dual MIT and Apache 2.0 License. Any contributions to this crate are assumed to be licensed likewise; contributions not under the both of these licenses are not being accepted at this time.
 
 ## See also
 
