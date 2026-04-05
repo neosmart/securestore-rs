@@ -619,15 +619,17 @@ fn run(
 }
 
 fn confirm<S: AsRef<str>>(prompt: S) -> bool {
+    let prompt = prompt.as_ref().trim_matches('?');
+
     let is_tty = stdin_is_tty();
     if !is_tty {
+        eprint!("{}? [y/N] ", prompt);
         return true;
     }
 
     // stdin.read_line(..) doesn't give us a way to detect Ctrl+C on Windows
-    let prompt = prompt.as_ref();
     loop {
-        eprint!("{}? [y/n] ", prompt.trim_matches('?'));
+        eprint!("{}? [y/n] ", prompt);
         let input = read();
         let line = input.trim().to_lowercase();
         if line == "y" || line == "yes" {
