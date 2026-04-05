@@ -402,13 +402,13 @@ fn main() {
             password = secure_read("Password: ");
 
             if matches!(mode, Mode::Create { .. }) {
-                let password2 = secure_read("Confirm password: ");
-                if password != password2 {
+                if password.len() < 8 {
+                    eprintln!("Password does not meet minimum length requirements!");
                     continue;
                 }
 
-                if password.len() < 8 {
-                    eprintln!("Password does not meet minimum length requirements!");
+                let password2 = secure_read("Confirm password: ");
+                if password != password2 {
                     continue;
                 }
             }
