@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod client_tests;
 
-use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, Command};
 use securestore::{KeySource, SecretsManager};
 use serde_json::json;
@@ -159,7 +158,8 @@ fn main() {
                         .index(1)
                         .value_name("STORE")
                         .value_parser(clap::value_parser!(PathBuf))
-                        .default_value("secrets.json")
+                        .required_unless_present("store")
+                        .conflicts_with("store")
                         .help("The path to the SecureStore vault to create.")
                         .long_help(concat!(
                             "If not provided, the SecureStore standard location 'secrets.json' ",
@@ -168,7 +168,7 @@ fn main() {
                 )
                 .arg(no_vcs.clone())
                 .arg(
-                    Arg::new("export_key")
+                    Arg::new("create_export_key")
                         .long("export-key")
                         .value_name("EXPORT_PATH")
                         .value_parser(clap::value_parser!(PathBuf))
@@ -357,7 +357,9 @@ fn main() {
         ),
         "delete" => Mode::Delete(mode_args.get_one::<String>("delete_key").unwrap()),
         "create" => {
-            let export_key = mode_args.get_one::<PathBuf>("export_key").map(Path::new);
+            let export_key = mode_args
+                .get_one::<PathBuf>("create_export_key")
+                .map(Path::new);
             let no_vcs = mode_args.get_flag("no_vcs");
             Mode::Create { export_key, no_vcs }
         }
@@ -378,29 +380,12 @@ fn main() {
         }
     };
 
-    // In the specific case of `ssclient create`, a store path can be provided via a
-    // positional argument (e.g. `ssclient create path.json`) or via the global
-    // `-s`/`--store` option (e.g. `ssclient create -s path.json`). The
-    // positional argument takes priority.
-    if matches!(mode, Mode::Create { .. })
-        && mode_args.value_source("create_store") != Some(ValueSource::DefaultValue)
-        && app_args.value_source("store") != Some(ValueSource::DefaultValue)
-        && mode_args.get_one::<String>("create_store") != app_args.get_one::<String>("store")
-    {
-        eprintln!("Conflicting store paths provided!");
-        std::process::exit(1);
-    }
-
-    // We can't use `.is_present()` as the default value would coerce a true result.
-    // It is safe to call unwrap because a default value is always present.
-    let store_path = if matches!(mode, Mode::Create { .. })
-        && mode_args.value_source("create_store") == Some(ValueSource::CommandLine)
-    {
-        mode_args.get_one::<PathBuf>("create_store").unwrap()
-    } else {
+    // Clap has been configured to reject providing both create_store and store
+    let store_path = mode_args
+        .get_one::<PathBuf>("create_store")
+        .unwrap_or_else(||
         // This has a default value of secrets.json so it's safe to unwrap
-        app_args.get_one::<PathBuf>("store").unwrap()
-    };
+        app_args.get_one::<PathBuf>("store").unwrap());
 
     if !matches!(mode, Mode::Create { .. }) && !store_path.exists() {
         eprintln!("Cannot find secure store: {}", store_path.display());
