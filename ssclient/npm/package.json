@@ -34,8 +34,7 @@
   ],
   "type": "module",
   "scripts": {
-    "prepack": "npm run lint && npm run build",
-    "prepare": "echo 'This placeholder file will be overridden by our install scripts' > bin/ssclient.cmd",
+    "prepack": "npm run lint && npm run build && echo 'This placeholder file will be overridden by our install scripts' > bin/ssclient.cmd",
     "install": "node ./install.js",
     "ssclient": "node ./ssclient.js",
     "build": "node ./build.js",
