@@ -553,18 +553,16 @@ fn run(
                         "value": value,
                     }),
                     Err(e) if e.kind() == securestore::ErrorKind::DeserializationError => {
-                        let value = sman.get_as::<Vec<u8>>(key).expect(Box::leak(
-                            format!("Failed to retrieve secret {key}").into_boxed_str(),
-                        ));
+                        let value = sman
+                            .get_as::<Vec<u8>>(key)
+                            .expect(&format!("Failed to retrieve secret {key}"));
 
                         json!({
                             "key": key,
                             "value": value,
                         })
                     }
-                    Err(e) => Err(e).expect(Box::leak(
-                        format!("Failed to retrieve secret {key}").into_boxed_str(),
-                    )),
+                    Err(e) => Err(e).expect(&format!("Failed to retrieve secret {key}")),
                 })
                 .collect();
 
