@@ -8,8 +8,8 @@ description = "SecureStore client for managing user secrets"
 keywords = [ "encryption", "security", "secrets", "cryptography" ]
 categories = [ "cryptography", "web-programming", "development-tools", "command-line-utilities", "config" ]
 license = "Apache-2.0 OR MIT"
-homepage = "http://neosmart.net/blog/2020/securestore-open-secrets-format/"
-repository = "https://github.com/neosmart/securestore-rs/tree/master/securestore"
+homepage = "http://neosmart.net/SecureStore/"
+repository = "https://github.com/neosmart/securestore-rs"
 
 [dependencies]
 radix64 = "0.6.2"
