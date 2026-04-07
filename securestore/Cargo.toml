@@ -32,7 +32,7 @@ version = "0.1"
 optional = true
 
 [dependencies.getrandom]
-version = "0.4"
+version = "0.3"
 optional = true
 
 [dependencies.hmac]
