@@ -48,14 +48,9 @@ enum VcsType {
     Git,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn stdin_is_tty() -> bool {
-    atty::is(atty::Stream::Stdin)
-}
-
-#[cfg(not(not(target_arch = "wasm32")))]
-fn stdin_is_tty() -> bool {
-    true
+    use std::io::IsTerminal;
+    std::io::stdin().is_terminal()
 }
 
 fn main() {
