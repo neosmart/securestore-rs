@@ -1,6 +1,6 @@
 [package]
 name = "securestore"
-version = "0.100.2"
+version = "0.100.3"
 authors = ["Mahmoud Al-Qudsi <mqudsi@neosmart.net>", "NeoSmart Technologies"]
 edition = "2018"
 description = "SecureStore API for creating or decrypting user secrets"
