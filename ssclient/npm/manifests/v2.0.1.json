@@ -3,10 +3,10 @@
   "precompiled": {
     "win32-x64": {
       "bin_path": "./ssclient.exe",
-      "url": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.0/ssclient-2.0.0-windows-x86_64.zip"
+      "url": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-windows-x86_64.zip"
     },
-    "linux-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.0/ssclient-2.0.0-linux-x86_64.tar.gz",
-    "darwin-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.0/ssclient-2.0.0-macos-x86_64.tar.gz",
-    "freebsd-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.0/ssclient-2.0.0-freebsd-x86_64.tar.gz"
+    "linux-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-linux-x86_64.tar.gz",
+    "darwin-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-macos-x86_64.tar.gz",
+    "freebsd-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-freebsd-x86_64.tar.gz"
   }
 }
