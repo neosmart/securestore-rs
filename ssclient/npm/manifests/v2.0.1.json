@@ -7,6 +7,6 @@
     },
     "linux-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-linux-x86_64.tar.gz",
     "darwin-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-macos-x86_64.tar.gz",
-    "freebsd-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-freebsd-x86_64.tar.gz"
+    "freebsd-x64": "https://github.com/neosmart/securestore-rs/releases/download/ssclient/2.0.1/ssclient-2.0.1-freebsd-amd64.tar.gz"
   }
 }
