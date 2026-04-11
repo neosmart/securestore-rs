@@ -5,7 +5,7 @@
 
 This crate contains a rusty implementation of [the open SecureStore secrets storage protocol](https://github.com/neosmart/securestore-rs), that can read, write and update encrypted password storage files that are designed to be stored alongside your code in your GIT repository (or wherever else). Implementations are also available [for other languages](https://nesomart.net/SecureStore/).
 
-You can read more about SecureStore [on our website](https://neosmart.net/blog/2020/securestore-secrets-storage). The associated command-line client for managing the secrets store (creating a new store, adding, removing, and updating secrets) can also be found [in this repository](../ssclient/).
+You can read more about SecureStore [on our website](https://neosmart.net/blog/2020/securestore-secrets-storage). The associated command-line client for managing the secrets store (creating a new store, adding, removing, and updating secrets) can also be found [in this repository](../ssclient/). A walkthrough of using a combination of both `ssclient` and `securestore` to manage secrets at the CLI and retrieve them programmatically at runtime is available [in the repo README](https://github.com/neosmart/securestore-rs/blob/master/README.md).
 
 ## Getting started
 
