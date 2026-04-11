@@ -64,8 +64,10 @@ fn main() {
         let target = default_target_triple();
         let static_build = !is_gnu_libc();
         let bin = build(name, &target, static_build).unwrap();
+        let os = uname_os();
+        let arch = uname_arch();
         tar(
-            format!("{name}-{version}-{target}.tar.gz"),
+            format!("{name}-{version}-{os}-{arch}.tar.gz"),
             &[&bin, "./ssclient/README.md".as_ref(), "./LICENSE".as_ref()],
         );
     }
@@ -244,6 +246,25 @@ fn default_target_triple() -> String {
         .next()
         .expect("Could not find host triple field in `rustc -vV` output")
         .to_string()
+}
+
+fn uname_os() -> String {
+    let output = Command::new("uname")
+        .output()
+        .expect("Error executing `uname`");
+    let output = String::from_utf8_lossy(&output.stdout);
+
+    output.trim().to_ascii_lowercase()
+}
+
+fn uname_arch() -> String {
+    let output = Command::new("uname")
+        .arg("-m")
+        .output()
+        .expect("Error executing `uname -m`");
+    let output = String::from_utf8_lossy(&output.stdout);
+
+    output.trim().to_ascii_lowercase()
 }
 
 // vim: set ft=rust :
