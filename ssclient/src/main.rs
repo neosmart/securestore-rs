@@ -740,6 +740,11 @@ fn repo_type(path: &Path, max_depth: i32) -> VcsType {
         }
     }
 
+    // WASM doesn't have access to the directory tree due to permissions issues
+    if cfg!(target_arch = "wasm32") {
+        return VcsType::Git;
+    }
+
     VcsType::None
 }
 
