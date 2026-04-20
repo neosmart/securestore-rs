@@ -294,6 +294,17 @@ static SECRETS: Lazy<SecretsManager> = Lazy::new(|| {
 
 So while we _could have_ hard-coded `db:username`, that would have meant also testing `MYWEBAPP_ENV` in `get_db_credentials()` to figure out what username to return in addition to the `MYWEBAPP_ENV` check in the `SECRETS` declaration that determined which secrets store to load. But if we store `db:username` as a secret the same way we store `db:password`, all that differentiation is done automatically for us. In addition, it makes sense to keep all the credentials info in one place (the secrets vault), wholly separate from the runtime logic - if you need to update the username and password in the future, you just need to update them in one place (the vault) rather than needing to patch both `secrets.json` and `src/main.rs` (in addition to remembering to do so).
 
+## Threat Model Considerations
+
+As with any other security-related topic, it is important to fully understand your threat model in order to determine how best to use the tools available at hand.
+
+Some general considerations:
+
+* Securely copying/moving the production decryption key to your server(s) via a secure channel (definitely not via git as part of your CI workflow) needs to only happen once; subsequent updates to the SecureStore vault (`secrets.json`), which *is* versioned and deployed as part of your normal deployment workflow, does not require any changes to the decryption key. This can be part of the workflow for staging or standing up a new server, accessible only to the same people you trust with the security and integrity of the production machines; i.e. your key is only compromised if your machine is compromised, presuming that fits your threat model.
+* You do not *have* to physically store the decryption key on your server. The SecureStore libraries for various languages support loading the decryption key from a stream or buffer, and it can be loaded via a remote network call, provided via an environment variable (ill-advised!), encrypted and subsequently decrypted with public-key encryption, stored in a TPM, or omitted altogether.
+* For some particularly security sensitive use cases, the decryption keys can be completely omitted (in production, or always) by requiring "manual unlock" of the vault: your service (or an agent resident on the server) can block at startup until the vault decryption *password* is provided, or you can store the production key encrypted on-disk/in-memory with whatever security facilities your OS or architecture make available to you, re-seeded upon system startup via whatever means you desire.
+* While the SecureStore protocol does not (yet) feature native hardware security module (HSM) support, the exported symmetric encryption/decryption key can itself be encrypted with an HSM-resident encryption key (and the original securely disposed of thereafter), requiring either the presence of a physical HSM to unlock the SecureStore vault at runtime or even biometric authentication and/or explicit user presence (via interaction with an HSM with a touch sensor, like YubiKey) for the master decryption key to be unlocked.
+
 ## Build features (crypto backends)
 
 Cryptography is provided by one of two backends, selected at build time via Cargo features:
