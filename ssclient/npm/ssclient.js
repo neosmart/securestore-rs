@@ -30,28 +30,28 @@ if (process && process.emitWarning) {
 /** @type {typeof import("node:wasi").WASI} */
 let WASI;
 try {
-  const wasiModule = await import("node:wasi");
-  WASI = wasiModule.WASI;
+    const wasiModule = await import("node:wasi");
+    WASI = wasiModule.WASI;
 } catch (e) {
-  // If we can't import it, we need the --experimental-wasi-unstable-preview1 flag.
-  const scriptPath = fileURLToPath(import.meta.url);
+    // If we can't import it, we need the --experimental-wasi-unstable-preview1 flag.
+    const scriptPath = fileURLToPath(import.meta.url);
 
-  if (process.argv.find(arg => arg === "--experimental-wasi-unstable-preview1")) {
-    // Already tried launching with this flag and it didn't work
-    console.error(`Unable to load WASI module: ${e}`);
-    process.exit(1);
-  }
+    if (process.argv.find(arg => arg === "--experimental-wasi-unstable-preview1")) {
+        // Already tried launching with this flag and it didn't work
+        console.error(`Unable to load WASI module: ${e}`);
+        process.exit(1);
+    }
 
-  // Re-spawn the current process with the flag enabled
-  const child = spawn(
-    process.execPath,
-    ["--experimental-wasi-unstable-preview1", scriptPath, ...process.argv.slice(2)],
-    { stdio: "inherit" }
-  );
+    // Re-spawn the current process with the flag enabled
+    const child = spawn(
+        process.execPath,
+        ["--experimental-wasi-unstable-preview1", scriptPath, ...process.argv.slice(2)],
+        { stdio: "inherit" }
+    );
 
-  child.on("exit", (code) => process.exit(code ?? 0));
-  // Block indefinitely until child has exited
-  await new Promise(() => {});
+    child.on("exit", (code) => process.exit(code ?? 0));
+    // Block indefinitely until child has exited
+    await new Promise(() => { });
 }
 
 /**

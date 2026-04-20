@@ -21,29 +21,29 @@ const ssclient = path.resolve(__dirname, 'ssclient.js');
  * @param {string} message
  */
 const die = (message) => {
-  console.error(`[BUILD ERROR] ${message}`);
-  process.exit(1);
+    console.error(`[BUILD ERROR] ${message}`);
+    process.exit(1);
 };
 
 console.log(`> cd ${cargoRoot}`);
 
 /** @type {import('node:child_process').SpawnSyncOptions} */
 const spawnOptions = {
-  cwd: cargoRoot,
-  stdio: 'inherit',
-  env: {
-    ...process.env,
-    RUSTFLAGS: '', // Explicitly clear RUSTFLAGS
-  },
-  shell: false
+    cwd: cargoRoot,
+    stdio: 'inherit',
+    env: {
+        ...process.env,
+        RUSTFLAGS: '', // Explicitly clear RUSTFLAGS
+    },
+    shell: false
 };
 
 const cargoArgs = [
-  'build',
-  '--no-default-features',
-  '--features', 'rustls',
-  '--target', 'wasm32-wasip1',
-  '--release'
+    'build',
+    '--no-default-features',
+    '--features', 'rustls',
+    '--target', 'wasm32-wasip1',
+    '--release'
 ];
 
 console.log(`> cargo ${cargoArgs.join(' ')}`);
@@ -51,38 +51,38 @@ console.log(`> cargo ${cargoArgs.join(' ')}`);
 const result = spawnSync('cargo', cargoArgs, spawnOptions);
 
 if (result.error) {
-  die(`Failed to execute cargo: ${result.error.message}`);
+    die(`Failed to execute cargo: ${result.error.message}`);
 }
 
 if (result.status !== 0) {
-  die(`Cargo build failed with exit code ${result.status}`);
+    die(`Cargo build failed with exit code ${result.status}`);
 }
 
 try {
-  if (!fs.existsSync(dstDir)) {
-    console.log(`Creating directory: ${dstDir}`);
-    fs.mkdirSync(dstDir, { recursive: true });
-  }
+    if (!fs.existsSync(dstDir)) {
+        console.log(`Creating directory: ${dstDir}`);
+        fs.mkdirSync(dstDir, { recursive: true });
+    }
 
-  console.log(`Copying build artifact:\n From: ${srcWasm}\n To:   ${dstWasm}`);
+    console.log(`Copying build artifact:\n From: ${srcWasm}\n To:   ${dstWasm}`);
 
-  if (!fs.existsSync(srcWasm)) {
-    die(`Source file not found at ${srcWasm}`);
-  }
+    if (!fs.existsSync(srcWasm)) {
+        die(`Source file not found at ${srcWasm}`);
+    }
 
-  fs.copyFileSync(srcWasm, dstWasm);
-  console.log('Build and copy successful.');
+    fs.copyFileSync(srcWasm, dstWasm);
+    console.log('Build and copy successful.');
 } catch (err) {
-  /** @type {Error} */
-  // @ts-ignore
-  const error = err;
-  die(`File operation failed: ${error.message}`);
+    /** @type {Error} */
+    // @ts-ignore
+    const error = err;
+    die(`File operation failed: ${error.message}`);
 }
 
 // Ensure ssclient.js runs ok
 const wasmResult = spawnSync('node', [ssclient, "--version"]);
 if (wasmResult.error) {
-  die(`Failed to execute ssclient.wasm (via ssclient.js): ${wasmResult.error.message}`);
+    die(`Failed to execute ssclient.wasm (via ssclient.js): ${wasmResult.error.message}`);
 } else if (wasmResult.status !== 0) {
-  die(`ssclient.wasm failed with exit code ${wasmResult.status}`);
+    die(`ssclient.wasm failed with exit code ${wasmResult.status}`);
 }
