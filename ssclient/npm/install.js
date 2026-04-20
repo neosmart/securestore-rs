@@ -70,15 +70,6 @@ function getArchiveType(urlStr) {
 }
 
 /**
- * Executes a callback when the variable goes out of scope.
- * @param {() => void} callback
- * @returns {Disposable}
- */
-export const defer = (callback) => ({
-  [Symbol.dispose]: callback
-});
-
-/**
  * Tries to download from an array of URLs.
  * @param {string[]} urls
  * @param {string} dest
@@ -304,18 +295,20 @@ async function main() {
     if (!urls[0]) {
         throw new Error(`Missing a url for target ${tuple}`);
     }
+
     const archivePath = join(tmpdir(), extractUrlFileName(urls[0]));
-    using _ = defer(async () => {
+    try {
+      await downloadWithRetry(urls, archivePath);
+
+      const { bin} = await extractRelease(archivePath, binPathInside);
+
+      await linkBinary(bin, ENTRY_POINT);
+      await removeOldVersions();
+    } finally {
       if (existsSync(archivePath)) {
         await rm(archivePath);
       }
-    });
-    await downloadWithRetry(urls, archivePath);
-
-    const { bin} = await extractRelease(archivePath, binPathInside);
-
-    await linkBinary(bin, ENTRY_POINT);
-    await removeOldVersions();
+    }
 
     console.log(`Success: Installed precompiled native ${tuple} ${BIN_NAME}`);
   } catch (err) {
