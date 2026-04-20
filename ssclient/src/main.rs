@@ -436,7 +436,7 @@ fn print_version_info(short: bool) {
 
     if !short {
         let lib_version = securestore::VERSION;
-        #[cfg(feature = "rustls")]
+        #[cfg(not(feature = "openssl"))]
         let dep_versions = env!("CRYPTO_VERSIONS");
         #[cfg(feature = "openssl")]
         let dep_versions = securestore::openssl_version();
