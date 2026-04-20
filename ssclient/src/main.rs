@@ -153,7 +153,6 @@ fn main() {
                         .index(1)
                         .value_name("STORE")
                         .value_parser(clap::value_parser!(PathBuf))
-                        .required_unless_present("store")
                         .conflicts_with("store")
                         .help("The path to the SecureStore vault to create.")
                         .long_help(concat!(
