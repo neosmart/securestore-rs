@@ -160,7 +160,7 @@ fn main() {
                             "is used as a default.",
                         )),
                 )
-                .arg(no_vcs.clone())
+                .arg(no_vcs.clone().id("create_no_vcs"))
                 .arg(
                     Arg::new("create_export_key")
                         .long("export-key")
@@ -194,7 +194,7 @@ fn main() {
                     "or when exporting all secrets to text, but binary secrets that cannot be ",
                     "interpreted as UTF-8 strings will be encoded as base64 and returned ",
                     "as `base64:<encoded>`. Secrets are always retrieved as-is if exporting ",
-                    "to a JSON file (via `ssclient get --all --format json`).",
+                    "to JSON (via `ssclient get --all --format json`).",
                 ))
                 .arg(
                     Arg::new("get_key")
@@ -309,7 +309,7 @@ fn main() {
                         .help("Where to export the keyfile version of the vault password")
                         .required(true),
                 )
-                .arg(no_vcs),
+                .arg(no_vcs.id("export_no_vcs")),
         );
 
     let app_args = cmd.get_matches_mut();
