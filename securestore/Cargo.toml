@@ -16,12 +16,12 @@ serde = { version = "1.0.197", features = [ "derive" ] }
 serde_json = "1.0.114"
 
 [target.'cfg(not(windows))'.dependencies]
-openssl = { version = "0.10.64", optional = true }
+openssl = { version = "0.10.81", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 # Building OpenSSL (via openssl/vendored) requires perl.exe on Windows, which
 # is less likely to be installed than OpenSSL itself.
-openssl = { version = "0.10.64", optional = true }
+openssl = { version = "0.10.81", optional = true }
 
 [dependencies.aes]
 version = "0.8"
