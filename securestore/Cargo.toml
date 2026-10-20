@@ -48,7 +48,7 @@ version = "0.10"
 optional = true
 
 [dependencies.subtle]
-version = "2.5"
+version = "2.6"
 optional = true
 
 [features]
